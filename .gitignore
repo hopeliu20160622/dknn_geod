@@ -1,0 +1,9 @@
+*.pyc
+*.DS_Store
+*.vscode
+*.ipynb_checkpoints
+data/
+results/
+plots/
+statistics/
+theory/
