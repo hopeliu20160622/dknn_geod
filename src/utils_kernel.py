@@ -3,6 +3,14 @@ from sklearn.utils.graph import graph_shortest_path
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.neighbors import NearestNeighbors, kneighbors_graph
+from sklearn.utils import check_random_state
+
+import pyximport
+pyximport.install(setup_args={"script_args":["--compiler=unix"],
+                              "include_dirs":np.get_include()},
+                  reload_support=True)
+
+from shortest_path import shortest_path
 
 ##########################################################################
 # KERNEL TRANSFORMATIONS
@@ -20,6 +28,34 @@ def compute_geodesics_kernel(kernel):
     # shortest path <=> likeliest path
     geodesics_kernel = -graph_shortest_path(weight_matrix, method='FW')
     return geodesics_kernel
+
+##########################################################################
+# GEODESIC LANDMARKS
+##########################################################################
+
+def compute_landmarks(features, n_landmarks='auto', random_state=None):
+        """Computes the landmarks in the training data that will be used
+        when fitting the data set.
+        Returns
+        -------
+        landmarks_: array-like, shape (landmarks,)
+            The array of landmarks to use, or None, if all samples should
+            be used.
+        """
+        n_samples = features.shape[0]
+        n_components = features.shape[1]
+        landmarks_= None
+
+        if n_landmarks == 'auto':
+            n_landmarks = min(n_components + 10, n_samples)
+
+        random_state = check_random_state(random_state)
+
+        landmarks_ = np.arange(n_samples)
+        random_state.shuffle(landmarks_)
+        landmarks_ = landmarks_[:n_landmarks]
+
+        return landmarks_
 
 ##########################################################################
 # KERNEL DEFINITIONS
@@ -89,5 +125,25 @@ def hard_geodesics_euclidean_kernel(features, n_neighbors):
     dist_matrix_ = graph_shortest_path(kng,
                                        method='FW',
                                        directed=False)
+    kernel = (0.5)*dist_matrix_**2
+    return kernel
+
+def hard_landmarks_geodesics_euclidean_kernel(features, n_neighbors, n_landmarks='auto'):
+    nbrs_ = NearestNeighbors(n_neighbors=n_neighbors,
+                            algorithm='auto',
+                            metric='euclidean',
+                            n_jobs=2)
+    nbrs_.fit(features)
+    kng = kneighbors_graph(X=nbrs_, n_neighbors=n_neighbors,
+                           metric='euclidean',
+                           mode='distance', n_jobs=2)
+    
+    landmarks = compute_landmarks(features, n_landmarks)
+    dist_matrix_ = shortest_path(kng,
+                                 method='D',
+                                 directed=False,
+                                 indices=landmarks).T
+    print(dist_matrix_)
+
     kernel = (0.5)*dist_matrix_**2
     return kernel
