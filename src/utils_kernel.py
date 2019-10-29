@@ -79,11 +79,11 @@ def hard_geodesics_euclidean_tv_kernel(features, n_neighbors):
 def hard_geodesics_euclidean_kernel(features, n_neighbors):
     nbrs_ = NearestNeighbors(n_neighbors=n_neighbors,
                             algorithm='auto',
-                            metric='cosine',
+                            metric='euclidean',
                             n_jobs=2)
     nbrs_.fit(features)
     kng = kneighbors_graph(X=nbrs_, n_neighbors=n_neighbors,
-                           metric='cosine',
+                           metric='euclidean',
                            mode='distance', n_jobs=2)
 
     dist_matrix_ = graph_shortest_path(kng,

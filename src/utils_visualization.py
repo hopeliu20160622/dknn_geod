@@ -3,9 +3,9 @@ import pandas as pd
 
 from sklearn.linear_model import LinearRegression
 
-import torchvision.transforms as transforms
+#import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
-import seaborn as sns
+#import seaborn as sns
 
 #from utils_experiment import parse_trajectory_layer_statistics
 
