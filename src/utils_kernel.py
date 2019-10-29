@@ -143,7 +143,42 @@ def hard_landmarks_geodesics_euclidean_kernel(features, n_neighbors, n_landmarks
                                  method='D',
                                  directed=False,
                                  indices=landmarks).T
-    print(dist_matrix_)
 
-    kernel = (0.5)*dist_matrix_**2
+    kernel = approx_geodesic(features, dist_matrix_, landmarks, nbrs_)
     return kernel
+
+def approx_geodesic(X, dist_matrix_, landmarks_, nbrs_):
+    """Transform X.
+    This is implemented by linking the points X into the graph of geodesic
+    distances of the training data. First the `n_neighbors` nearest
+    neighbors of X are found in the training data, and from these the
+    shortest geodesic distances from each point in X to each landmark in
+    the training data are computed in order to construct the kernel.
+    The embedding of X is the projection of this kernel onto the
+    embedding vectors of the training set.
+    Parameters
+    ----------
+    X : array-like, shape (n_samples, n_features)
+    Returns
+    -------
+    X_new : array-like, shape (n_samples, n_components)
+    """
+    
+    #X = check_array(X)
+    distances, indices = nbrs_.kneighbors(X, return_distance=True)
+
+    # (or to the landmarks, when executing L-Isomap) via the nearest
+    # neighbors of X.
+    # This can be done as a single array operation, but it potentially
+    # takes a lot of memory.  To avoid that, use a loop:
+    columns = landmarks_.shape[0]
+
+    G_X = np.zeros((X.shape[0], columns))
+    for i in range(X.shape[0]):
+        G_X[i] = np.min((dist_matrix_[indices[i]] +
+                         distances[i][:, None]), axis=0)
+
+    G_X **= 2
+    G_X *= -0.5
+
+    return G_X
