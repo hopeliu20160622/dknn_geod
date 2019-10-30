@@ -32,6 +32,26 @@ from cleverhans import serial
 from pathlib import Path
 from utils_kernel import euclidean_kernel, hard_geodesics_euclidean_kernel
 
+if 'DISPLAY' not in os.environ:
+  matplotlib.use('Agg')
+
+FLAGS = tf.flags.FLAGS
+
+def make_basic_picklable_cnn(nb_filters=64, nb_classes=10,
+                             input_shape=(None, 28, 28, 1)):
+  """The model for the picklable models tutorial.
+  """
+  layers = [Conv2D(nb_filters, (8, 8), (2, 2), "SAME"),
+            ReLU(),
+            Conv2D(nb_filters * 2, (6, 6), (2, 2), "VALID"),
+            ReLU(),
+            Conv2D(nb_filters * 2, (5, 5), (1, 1), "VALID"),
+            ReLU(),
+            Flatten(),
+            Linear(nb_classes),
+            Softmax()]
+  model = MLP(layers, input_shape)
+  return model
 
 class DkNNModel(Model):
   def __init__(self, neighbors, layers, get_activations, train_data, train_labels,
@@ -200,3 +220,133 @@ class DkNNModel(Model):
     self.nb_cali = self.cali_nonconformity.shape[0]
     self.calibrated = True
     print("DkNN calibration complete.")
+
+def get_tensorflow_session():
+    gpu_options = tf.GPUOptions()
+    gpu_options.per_process_gpu_memory_fraction=FLAGS.tensorflow_gpu_memory_fraction
+    sess = tf.Session(
+        config=tf.ConfigProto(
+            gpu_options=gpu_options
+        )
+    )
+
+    return sess
+
+def compute_geodesic_matrices():
+  mnist = MNIST(train_start=0, train_end=FLAGS.nb_train, test_start=0, test_end=1000)
+  x_train, y_train = mnist.get_set('train')
+  x_test, y_test = mnist.get_set('test')
+
+  # Use Image Parameters.
+  img_rows, img_cols, nchannels = x_train.shape[1:4]
+  nb_classes = y_train.shape[1]
+
+  with get_tensorflow_session() as sess:
+    with tf.variable_scope('dknn'):
+      tf.set_random_seed(FLAGS.seed)
+      np.random.seed(int(FLAGS.seed))
+
+      # Define input TF placeholder.
+      x = tf.placeholder(tf.float32, shape=(
+        None, img_rows, img_cols, nchannels))
+      y = tf.placeholder(tf.float32, shape=(None, nb_classes))
+
+      # Define a model.
+      model = make_basic_picklable_cnn()
+      preds = model.get_logits(x)
+      loss = CrossEntropy(model, smoothing=0.)
+
+      # Define the test set accuracy evaluation.
+      def evaluate():
+          acc = model_eval(sess, x, y, preds, x_test, y_test,
+                            args={'batch_size': FLAGS.batch_size})
+          print('Test accuracy on test examples: %0.4f' % acc)
+
+      # Train the model
+      train_params = {'nb_epochs': FLAGS.nb_epochs,
+                    'batch_size': FLAGS.batch_size, 'learning_rate': FLAGS.lr}
+
+      model_filepath = "../data/model.joblib"
+      path = Path(model_filepath)
+
+      if path.is_file():
+          model = serial.load(model_filepath)
+      else:
+          train(sess, loss, x_train, y_train, evaluate=evaluate,
+            args=train_params, var_list=model.get_params())
+          serial.save(model_filepath, model)
+
+        # Define callable that returns a dictionary of all activations for a dataset
+      def get_activations(data):
+          data_activations = {}
+          for layer in layers:
+              layer_sym = tf.layers.flatten(model.get_layer(x, layer))
+              data_activations[layer] = batch_eval(sess, [x], [layer_sym], [data],
+                                                  args={'batch_size': FLAGS.batch_size})[0]
+          return data_activations
+
+      # Use a holdout of the test set to simulate calibration data for the DkNN.
+      train_data = x_train
+      train_labels = np.argmax(y_train, axis=1)
+      cali_data = x_test[:FLAGS.nb_cali]
+      y_cali = y_test[:FLAGS.nb_cali]
+      cali_labels = np.argmax(y_cali, axis=1)
+      test_data = x_test[FLAGS.nb_cali:]
+      y_test = y_test[FLAGS.nb_cali:]
+
+      # Extract representations for the training and calibration data at each layer of interest to the DkNN.
+      layers = ['ReLU1', 'ReLU3', 'ReLU5', 'logits']
+
+      # Wrap the model into a DkNNModel
+      dknn = DkNNModel(
+      FLAGS.neighbors,
+      layers,
+      get_activations,
+      train_data,
+      train_labels,
+      nb_classes,
+      scope='dknn'
+      )
+
+  # Compute matrix for each layer
+  geodesic_matrices = []
+  for layer in layers:
+    print(layer)
+    activations = dknn.train_activations[layer]
+    geodesic_matrix = hard_geodesics_euclidean_kernel(activations, FLAGS.proto_neighbors)
+    geodesic_matrices.append(geodesic_matrix)
+
+  matrix_path = '../results/geodesic_matrices_'+str(FLAGS.nb_train)+'_'+str(FLAGS.proto_neighbors) + '.pkl'
+  with open(matrix_path, 'wb') as f:
+    pickle.dump(geodesic_matrices, f)
+
+  return True
+
+def main(argv=None):
+  assert compute_geodesic_matrices()
+
+
+if __name__ == '__main__':
+  tf.flags.DEFINE_integer(
+    'number_bits',
+    17,
+    'number of hash bits used by LSH Index'
+  )
+  tf.flags.DEFINE_float(
+    'tensorflow_gpu_memory_fraction',
+    0.25,
+    'amount of the GPU memory to allocate for a tensorflow Session'
+  )
+  tf.flags.DEFINE_integer('nb_epochs', 6, 'Number of epochs to train model')
+  tf.flags.DEFINE_integer('batch_size', 500, 'Size of training batches')
+  tf.flags.DEFINE_float('lr', 0.001, 'Learning rate for training')
+  tf.flags.DEFINE_float('seed', 123, 'Random seed')
+  tf.flags.DEFINE_integer(
+      'nb_cali', 750, 'Number of calibration points for the DkNN')
+  tf.flags.DEFINE_integer(
+      'neighbors', 75, 'Number of neighbors per layer for the DkNN')
+  tf.flags.DEFINE_integer('proto_neighbors', 5,
+      'Number of neighbors for the sparse adjacency for the geodesic kernel')
+  tf.flags.DEFINE_integer('nb_train', 1000,
+      'Number of train observations')
+  tf.app.run()
