@@ -32,10 +32,43 @@ from cleverhans import serial
 from pathlib import Path
 from utils_kernel import euclidean_kernel, hard_geodesics_euclidean_kernel
 
+class NNGeod():
+  def __init__(self, neighbors, proto_neighbors):
+    self.nb_neighbors = neighbors
+    self.nb_proto_neighbors = proto_neighbors
+  
+  def closest_neighbor(self, x):
+    deltas = self.X - x
+    dist_2 = np.einsum('ij,ij->i', deltas, deltas)
+    return np.argmin(dist_2)
+  
+  def add(self, X):
+    self.geodesic_kernel = hard_geodesics_euclidean_kernel(X, self.nb_proto_neighbors)
+    self.train_neighbor_index = np.argpartition(self.geodesic_kernel, 
+                                                   kth=self.nb_neighbors-1, axis=1)[:,:self.nb_neighbors-1]
+    self.X = X
+    return self
+
+  def find_knns(self, x, output):
+    closest_neighbor_index = self.closest_neighbor(x)
+    neighbor_index = self.train_neighbor_index[closest_neighbor_index, :]
+    neighbor_index = np.append(closest_neighbor_index, neighbor_index)
+
+    missing_indices = [False] * self.nb_neighbors
+
+    d1 = neighbor_index.reshape(-1)
+
+    output.reshape(-1)[
+      np.logical_not(missing_indices.flatten())
+    ] = d1[
+      np.logical_not(missing_indices.flatten())
+    ]
+
+    return missing_indices
 
 class DkNNModel(Model):
-  def __init__(self, neighbors, layers, get_activations, train_data, train_labels,
-               nb_classes, scope=None, nb_tables=200):
+  def __init__(self, neighbors, proto_neighbors, layers, get_activations, train_data, train_labels,
+               nb_classes, method, scope=None, nb_tables=200):
     """
     Implements the DkNN algorithm. See https://arxiv.org/abs/1803.04765 for more details.
     :param neighbors: number of neighbors to find per layer.
@@ -49,6 +82,8 @@ class DkNNModel(Model):
     """
     super(DkNNModel, self).__init__(nb_classes=nb_classes, scope=scope)
     self.neighbors = neighbors
+    self.proto_neighbors = proto_neighbors
+    self.method = method
     self.nb_tables = nb_tables
     self.layers = layers
     self.get_activations = get_activations
@@ -60,6 +95,45 @@ class DkNNModel(Model):
     assert self.nb_train == train_data.shape[0]
     self.train_activations = get_activations(train_data)
     self.train_labels = train_labels
+
+    # Build locality-sensitive hashing tables for training representations
+    self.train_activations_querier = copy.copy(self.train_activations)
+    self.init_nn_querier()
+
+  def init_nn_querier(self):
+    """
+    Initializes locality-sensitive hashing with FALCONN to find nearest neighbors in training data.
+    """
+    self.query_objects = {
+    }  # contains the object that can be queried to find nearest neighbors at each layer.
+    # mean of training data representation per layer (that needs to be substracted before
+    # NearestNeighbor).
+    self.centers = {}
+    for layer in self.layers:
+      # Normalize all the lenghts, since we care about the cosine similarity.
+      self.train_activations_querier[layer] /= np.linalg.norm(
+          self.train_activations_querier[layer], axis=1).reshape(-1, 1)
+
+      # Center the dataset and the queries: this improves the performance of LSH quite a bit.
+      center = np.mean(self.train_activations_querier[layer], axis=0)
+      self.train_activations_querier[layer] -= center
+      self.centers[layer] = center
+
+      if self.method == 'euclidean':
+        print('Constructing the NearestNeighbor table')
+        # self.query_objects[layer] = NearestNeighbor(
+        #  backend=2,
+        #  dimension=self.train_activations_querier[layer].shape[1],
+        #  number_bits=self.number_bits,
+        #  neighbors=self.neighbors,
+        #  nb_tables=self.nb_tables
+        # )
+        # self.query_objects[layer].add(self.train_activations_querier[layer])
+
+      elif self.method == 'geodesic':
+        print('Constructing the NearestNeighborGeodesic table')
+        self.query_objects[layer] = NNGeod(self.neighbors, self.proto_neighbors)
+        self.query_objects[layer].add(self.train_activations_querier[layer])
 
   def find_train_knns(self, data_activations):
     """
