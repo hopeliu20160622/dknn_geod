@@ -16,5 +16,5 @@ ipython kernel install --user --name=dknn_geod
 conda install -c anaconda pandas
 pip install cleverhans
 conda install -c akode falconn
-
+conda install pylint
 conda deactivate
