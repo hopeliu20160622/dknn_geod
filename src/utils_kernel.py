@@ -23,34 +23,6 @@ def compute_geodesics_kernel(kernel):
     return geodesics_kernel
 
 ##########################################################################
-# GEODESIC LANDMARKS
-##########################################################################
-
-def compute_landmarks(features, n_landmarks='auto', random_state=None):
-        """Computes the landmarks in the training data that will be used
-        when fitting the data set.
-        Returns
-        -------
-        landmarks_: array-like, shape (landmarks,)
-            The array of landmarks to use, or None, if all samples should
-            be used.
-        """
-        n_samples = features.shape[0]
-        n_components = features.shape[1]
-        landmarks_= None
-
-        if n_landmarks == 'auto':
-            n_landmarks = min(n_components + 10, n_samples)
-
-        random_state = check_random_state(random_state)
-
-        landmarks_ = np.arange(n_samples)
-        random_state.shuffle(landmarks_)
-        landmarks_ = landmarks_[:n_landmarks]
-
-        return landmarks_
-
-##########################################################################
 # KERNEL DEFINITIONS
 ##########################################################################
 
@@ -77,13 +49,13 @@ def euclidean_tv_kernel(features):
 def soft_geodesics_cosine_kernel(features, temperature):
     kernel = cosine_similarity(features)
     kernel = normalize_soften_kernel(kernel, temp=temperature)
-    kernel = compute_shortest_paths_matrix(normalized_kernel)
+    kernel = compute_geodesics_kernel(kernel)
     return kernel
 
 def soft_geodesics_euclidean_tv_kernel(features, temperature):
-    kernel = euclidean_similarity_tv(features)
+    kernel = euclidean_tv_kernel(features)
     kernel = normalize_soften_kernel(kernel, temp=temperature)
-    kernel = compute_shortest_paths_matrix(kernel)
+    kernel = compute_geodesics_kernel(kernel)
     return kernel
 
 def hard_geodesics_euclidean_tv_kernel(features, n_neighbors):
