@@ -212,7 +212,7 @@ class NNGeod():
   def add(self, X):
     self.geodesic_kernel = hard_geodesics_euclidean_kernel(X, self.nb_proto_neighbors)
     self.train_neighbor_index = np.argpartition(self.geodesic_kernel, 
-                                                   kth=self.nb_neighbors-1, axis=1)[:,:self.nb_neighbors-1]
+                                                   kth=range(self.nb_neighbors-1), axis=1)[:,:self.nb_neighbors-1]
     self.X = X
     return self
 
