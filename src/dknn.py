@@ -32,6 +32,35 @@ from cleverhans import serial
 from pathlib import Path
 from utils_kernel import euclidean_kernel, hard_geodesics_euclidean_kernel
 
+FLAGS = tf.flags.FLAGS
+
+def get_tensorflow_session():
+    gpu_options = tf.GPUOptions()
+    gpu_options.per_process_gpu_memory_fraction=FLAGS.tensorflow_gpu_memory_fraction
+    sess = tf.Session(
+        config=tf.ConfigProto(
+            gpu_options=gpu_options
+        )
+    )
+
+    return sess
+
+def make_basic_picklable_cnn(nb_filters=64, nb_classes=10,
+                             input_shape=(None, 28, 28, 1)):
+  """The model for the picklable models tutorial.
+  """
+  layers = [Conv2D(nb_filters, (8, 8), (2, 2), "SAME"),
+            ReLU(),
+            Conv2D(nb_filters * 2, (6, 6), (2, 2), "VALID"),
+            ReLU(),
+            Conv2D(nb_filters * 2, (5, 5), (1, 1), "VALID"),
+            ReLU(),
+            Flatten(),
+            Linear(nb_classes),
+            Softmax()]
+  model = MLP(layers, input_shape)
+  return model
+
 class NNGeod():
   def __init__(self, neighbors, proto_neighbors):
     self.nb_neighbors = neighbors
