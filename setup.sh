@@ -2,6 +2,7 @@
 conda create --name dknn_geod python=3.6
 source ~/anaconda3/etc/profile.d/conda.sh
 conda activate dknn_geod
+conda install -c anaconda pyyaml
 conda install -c conda-forge matplotlib
 conda install -c anaconda scikit-learn
 

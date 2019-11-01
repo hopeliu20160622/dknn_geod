@@ -1,0 +1,18 @@
+name: MNIST DKNN Experiment
+dataset_name: MNIST
+architecture: mlp
+device: cpu
+train_parameters:
+  max_epochs: 6
+  learning_rate: 0.001
+  lr_scheduler_step_size: 100
+  batch_size: 500
+  nb_random_seeds: 2
+  weight_decay: 0.0001
+  nb_train: 1000
+  nb_test: 1000
+nn_parameters:
+  nb_proto_neighbors: 5
+  nb_neighbors: 75
+  nb_cali: 750
+  backend: FALCONN
