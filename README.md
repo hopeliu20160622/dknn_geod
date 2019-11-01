@@ -18,5 +18,5 @@ Experiment Config File at configs/config_mnist.yaml
 # Run original DKNN (from cleverhans)
 ```console
 local_user@local_host$ conda activate dknn_geod
-local_user@local_host$ jupyter notebook example.ipynb
+local_user@local_host$ jupyter notebook example_mnist.ipynb
 ```
