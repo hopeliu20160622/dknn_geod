@@ -11,6 +11,7 @@ train_parameters:
   weight_decay: 0.0001
   nb_train: 1000
   nb_test: 1000
+  gpu_memory_fraction: 0.25
 nn_parameters:
   nb_proto_neighbors: 5
   nb_neighbors: 75

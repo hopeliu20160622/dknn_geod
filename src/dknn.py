@@ -38,9 +38,9 @@ from utils_kernel import euclidean_kernel, hard_geodesics_euclidean_kernel
 
 FLAGS = tf.flags.FLAGS
 
-def get_tensorflow_session():
+def get_tensorflow_session(config):
   gpu_options = tf.GPUOptions()
-  gpu_options.per_process_gpu_memory_fraction=FLAGS.tensorflow_gpu_memory_fraction
+  gpu_options.per_process_gpu_memory_fraction=config['gpu_memory_fraction']
   sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
   return sess
 
@@ -65,9 +65,9 @@ def make_basic_picklable_cnn(nb_filters=64, nb_classes=10,
 ###################################
 
 class NearestNeighbor:
-  class BACKEND(enum.Enum):
-    FALCONN = 1
-    FAISS = 2
+  #class BACKEND(enum.Enum):
+  #  FALCONN = 1
+  #  FAISS = 2
 
   def __init__(
     self,
@@ -77,18 +77,18 @@ class NearestNeighbor:
     number_bits,
     nb_tables=None,
   ):
-    assert backend in NearestNeighbor.BACKEND
+    #assert backend in NearestNeighbor.BACKEND
 
     self._NEIGHBORS = neighbors
     self._BACKEND = backend
 
-    if self._BACKEND is NearestNeighbor.BACKEND.FALCONN:
+    if self._BACKEND == 'FALCONN':
       self._init_falconn(
         dimension,
         number_bits,
         nb_tables
       )
-    elif self._BACKEND is NearestNeighbor.BACKEND.FAISS:
+    elif self._BACKEND == 'FAISS':
       self._init_faiss(
         dimension,
       )
@@ -184,17 +184,17 @@ class NearestNeighbor:
     return missing_indices
 
   def add(self, x):
-    if self._BACKEND is NearestNeighbor.BACKEND.FALCONN:
+    if self._BACKEND == 'FALCONN':
       self._falconn_table.setup(x)
-    elif self._BACKEND is NearestNeighbor.BACKEND.FAISS:
+    elif self._BACKEND == 'FAISS':
       self._faiss_index.add(x)
     else:
       raise NotImplementedError
 
   def find_knns(self, x, output):
-    if self._BACKEND is NearestNeighbor.BACKEND.FALCONN:
+    if self._BACKEND == 'FALCONN':
       return self._find_knns_falconn(x, output)
-    elif self._BACKEND is NearestNeighbor.BACKEND.FAISS:
+    elif self._BACKEND == 'FAISS':
       return self._find_knns_faiss(x, output)
     else:
       raise NotImplementedError
