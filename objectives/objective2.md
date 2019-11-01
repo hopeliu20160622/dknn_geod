@@ -13,10 +13,10 @@ To show potential benefits of the method, compare accuracies of softmax, DkNN an
 - [] MNIST
 - [] SVHN
 - [] GTSRB
-We might be able to do the same with datasets with noise or datasets for which we control flipped labels.
+- [] We might be able to do the same with datasets with noise or datasets for which we control flipped labels.
 
 # ACCURACY VS CONFIDENCE AND CREDIBILITY
-Explore if the "robustifying" effect is maintained for gDkNN (Figure 2). 
+Explore if the "robustifying" effect is maintained for gDkNN (original paper Figure 2). 
 This Figure is particularly weird might be just for us to create 3x3 Figure just to see.
 
 # ROBUSTNESS
@@ -28,7 +28,7 @@ The Figure could be a line comparing number of successfull attacks (y axis) vs t
 - [x] Naive attack is meant for just one neighbor, which makes the comparison between gDkNN and DkNN futile.
 
 # INTERPRETABILITY
-- [] Maybe look qualitatively for mislabeled inputs in MNIST, and SVHN just like DKNN paper (Figure 3) of original DkNN. By looking for outliers in confidence.
+- [] Maybe look qualitatively for mislabeled inputs in MNIST, and SVHN just like DKNN paper (original paper Figure 3) of original DkNN. By looking for outliers in confidence.
 - [] Maybe we can explore directly the flipping labels here to see if we are able to spot the flips.
 
 # CONFIDENCE AND CREDIBILITY
