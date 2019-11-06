@@ -25,12 +25,12 @@ from cleverhans.attacks import FastGradientMethod
 from cleverhans.loss import CrossEntropy
 from cleverhans.dataset import MNIST
 from cleverhans.model import Model
-from cleverhans.picklable_model import MLP, Conv2D, ReLU, Flatten, Linear, Softmax
 from cleverhans.train import train
 from cleverhans.utils_tf import batch_eval, model_eval
 from cleverhans import serial
 from pathlib import Path
 from utils_kernel import euclidean_kernel, hard_geodesics_euclidean_kernel
+from scipy.spatial import distance
 
 ###################################
 # TENSORFLOW UTILS
@@ -44,21 +44,6 @@ def get_tensorflow_session(config):
   sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
   return sess
 
-def make_basic_picklable_cnn(nb_filters=64, nb_classes=10,
-                             input_shape=(None, 28, 28, 1)):
-  """The model for the picklable models tutorial.
-  """
-  layers = [Conv2D(nb_filters, (8, 8), (2, 2), "SAME"),
-            ReLU(),
-            Conv2D(nb_filters * 2, (6, 6), (2, 2), "VALID"),
-            ReLU(),
-            Conv2D(nb_filters * 2, (5, 5), (1, 1), "VALID"),
-            ReLU(),
-            Flatten(),
-            Linear(nb_classes),
-            Softmax()]
-  model = MLP(layers, input_shape)
-  return model
 
 ###################################
 # NEAREST NEIGHBOR CLASSES
@@ -205,9 +190,9 @@ class NNGeod():
     self.nb_proto_neighbors = proto_neighbors
   
   def closest_neighbor(self, x):
-    deltas = self.X - x
-    dist_2 = np.einsum('ij,ij->i', deltas, deltas)
-    return np.argmin(dist_2)
+    dists = distance.cdist(x, self.X, 'euclidean')
+    closest_neighbor = np.argmin(dists, axis=1)
+    return closest_neighbor
   
   def add(self, X):
     self.geodesic_kernel = hard_geodesics_euclidean_kernel(X, self.nb_proto_neighbors)
@@ -218,18 +203,13 @@ class NNGeod():
 
   def find_knns(self, x, output):
     closest_neighbor_index = self.closest_neighbor(x)
-    neighbor_index = self.train_neighbor_index[closest_neighbor_index, :]
-    neighbor_index = np.append(closest_neighbor_index, neighbor_index)
 
-    missing_indices = [False] * self.nb_neighbors
-
-    d1 = neighbor_index.reshape(-1)
-
-    output.reshape(-1)[
-      np.logical_not(missing_indices.flatten())
-    ] = d1[
-      np.logical_not(missing_indices.flatten())
-    ]
+    for i in range(x.shape[0]):
+      neighbor_index = self.train_neighbor_index[closest_neighbor_index[i], :]
+      neighbor_index = np.append(closest_neighbor_index[i], neighbor_index)
+      output[i, :] = neighbor_index
+    
+    missing_indices = np.zeros(output.shape, dtype=np.bool)
 
     return missing_indices
 
@@ -428,9 +408,10 @@ class DkNNModel(Model):
     self.cali_activations = self.get_activations(cali_data)
     self.cali_labels = cali_labels
 
-    print("Starting calibration of DkNN.")
+    print("Starting calibration.")
     cali_knns_ind, cali_knns_labels = self.find_train_knns(
         self.cali_activations)
+
     assert all([v.shape == (self.nb_cali, self.neighbors)
                 for v in cali_knns_ind.values()])
     assert all([v.shape == (self.nb_cali, self.neighbors)
@@ -445,3 +426,22 @@ class DkNNModel(Model):
     self.nb_cali = self.cali_nonconformity.shape[0]
     self.calibrated = True
     print("DkNN calibration complete.")
+
+  def predict(self, new_x):
+    print("Predicting.")
+    # Get activations
+    new_activations = self.get_activations(new_x)
+    # Get neighbors
+    new_knns_ind, new_knns_labels = self.find_train_knns(new_activations)
+
+    assert all([v.shape == (new_x.shape[0], self.neighbors)
+                for v in new_knns_ind.values()])
+    assert all([v.shape == (new_x.shape[0], self.neighbors)
+                for v in new_knns_ind.values()])
+
+    # Nonconformity
+    new_knns_not_in_class = self.nonconformity(new_knns_labels)
+    # Predictions
+    preds, confs, creds = self.preds_conf_cred(new_knns_not_in_class)
+    print("Prediction complete.")
+    return preds, confs, creds
