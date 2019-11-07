@@ -75,6 +75,8 @@ def hard_geodesics_euclidean_tv_kernel(features, n_neighbors):
                                        method='FW',
                                        directed=False)
     kernel = (0.5)*dist_matrix_**2
+    max_distance = np.max(kernel)+1
+    kernel[kernel == 0]=max_distance
     return kernel
 
 def hard_geodesics_euclidean_kernel(features, n_neighbors):
@@ -91,4 +93,6 @@ def hard_geodesics_euclidean_kernel(features, n_neighbors):
                                        method='FW',
                                        directed=False)
     kernel = (0.5)*dist_matrix_**2
+    max_distance = np.max(kernel)+1
+    kernel[kernel == 0]=max_distance
     return kernel
