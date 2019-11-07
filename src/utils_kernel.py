@@ -63,9 +63,9 @@ def hard_geodesics_euclidean_tv_kernel(features, n_neighbors):
     normalized_features = (1/total_variation_sqrt) * features
     
     nbrs_ = NearestNeighbors(n_neighbors=n_neighbors,
-                            algorithm='auto',
-                            metric='euclidean',
-                            n_jobs=2)
+                             algorithm='auto',
+                             metric='euclidean',
+                             n_jobs=2)
     nbrs_.fit(normalized_features)
     kng = kneighbors_graph(X=nbrs_, n_neighbors=n_neighbors,
                            metric='euclidean',
@@ -81,9 +81,9 @@ def hard_geodesics_euclidean_tv_kernel(features, n_neighbors):
 
 def hard_geodesics_euclidean_kernel(features, n_neighbors):
     nbrs_ = NearestNeighbors(n_neighbors=n_neighbors,
-                            algorithm='auto',
-                            metric='euclidean',
-                            n_jobs=2)
+                             algorithm='auto',
+                             metric='euclidean',
+                             n_jobs=2)
     nbrs_.fit(features)
     kng = kneighbors_graph(X=nbrs_, n_neighbors=n_neighbors,
                            metric='euclidean',
