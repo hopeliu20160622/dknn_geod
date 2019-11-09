@@ -10,6 +10,7 @@ conda install -c anaconda scipy==1.2.1
 conda install -c anaconda scikit-learn==0.21.3
 conda install -c anaconda pandas==0.25.2
 conda install -c conda-forge matplotlib==3.1.1
+conda install -c anaconda seaborn==0.9.0
 
 conda install -c anaconda tensorflow=1.13.1
 #conda install -c anaconda tensorflow-gpu=1.13.1
