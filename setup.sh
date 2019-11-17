@@ -22,3 +22,4 @@ conda install -c anaconda pyyaml
 pip install cleverhans
 conda install -c akode falconn
 conda deactivate
+pip install pybind11, hnswlib # Needed for approx neighbors
