@@ -4,8 +4,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.neighbors import NearestNeighbors, kneighbors_graph
 from sklearn.utils import check_random_state
-from fast_geodesic_knn import fast_geodesic_knn
-import scipy.sparse
+#from fast_geodesic_knn import fast_geodesic_knn
+from scipy import sparse
+
 import time
 import hnswlib
 
@@ -125,13 +126,45 @@ def hard_geodesics_euclidean_kernel_approx(features, n_neighbors):
     dist_matrix_ = graph_shortest_path(kng,
                                        method='FW',
                                        directed=False)
-    kernel = (0.5)*dist_matrix_**2
+    kernel = (0.5)*dist_matrix_
     max_distance = np.max(kernel)+1
     kernel[kernel == 0]=max_distance
     return kernel
+
+def hard_geodesics_euclidean_kernel_approx_sparse(features, n_neighbors):
+    # Approximate Neighbors
+    num_elements, dim = features.shape
+    data_idx = np.arange(num_elements)
+
+    p = hnswlib.Index(space = 'l2', dim = dim)
+    p.init_index(max_elements = num_elements, ef_construction = 200, M = 16)
+
+    p.add_items(features, data_idx)
+    # The higher the ef, the slower, but better accuracy
+    p.set_ef(n_neighbors + 25) # Needs to be higher than the number of neighbors
+
+    # We add one to n_neighbors since we exclude the identity as a neighbor
+    neighbors_idx, distances = p.knn_query(features, k = n_neighbors + 1)
+    # Convert the result in matrix form
+    I = np.array(list(range(num_elements))*(n_neighbors))
+    J = neighbors_idx[:,1:].flatten('F')
+    V = distances[:,1:].flatten('F')
+
+    kng = sparse.coo_matrix((V,(I,J)),shape=(num_elements,num_elements))
+
+    # No change here on
+    dist_matrix_ = graph_shortest_path(kng,
+                                       method='FW',
+                                       directed=False)
+    kernel = (0.5)*dist_matrix_
+    max_distance = np.max(kernel)+1
+    kernel[kernel == 0]=max_distance
+    return kernel
+
 
 def hard_geodesics_euclidean_kernel(features, n_neighbors):
     #TODO: add the new kernel to DkNNModel class instead of switching here
 
     #return hard_geodesics_euclidean_kernel_regular(features, n_neighbors)
-    return hard_geodesics_euclidean_kernel_approx(features, n_neighbors)
+    #return hard_geodesics_euclidean_kernel_approx(features, n_neighbors)
+    return hard_geodesics_euclidean_kernel_approx_sparse(features, n_neighbors)
