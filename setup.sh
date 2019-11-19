@@ -21,6 +21,6 @@ conda install -c anaconda pylint
 conda install -c anaconda pyyaml
 pip install cleverhans
 conda install -c akode falconn
-conda install -c anaconda seaborn
+conda install -c conda-forge pybind11 # Needed for approx neighbors
+pip install hnswlib
 conda deactivate
-pip install pybind11, hnswlib # Needed for approx neighbors
