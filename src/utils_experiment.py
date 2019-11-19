@@ -132,7 +132,7 @@ def compare_accuracies(mc, data_dict):
 
   dknn_acc = (preds_knn==np.argmax(y_test, axis=1)).mean()
   gdknn_acc = (preds_geod==np.argmax(y_test, axis=1)).mean()
-  accuracies_dict = {'neighbors': nb_neighbors, 'DkNN': dknn_acc, 'gDkNN': gdknn_acc}
+  accuracies_dict = {'neighbors': mc.nb_neighbors, 'DkNN': dknn_acc, 'gDkNN': gdknn_acc}
   return accuracies_dict
 
 def get_data_dict(mc):
@@ -173,7 +173,7 @@ def hyperparameter_selection(mc):
   for nb_neighbors in nb_neighbors_list:
     print("\n\n============ nb_neighbors:{} ============".format(nb_neighbors))
     tf.reset_default_graph()
-    
+
     mc.nb_neighbors = nb_neighbors
     accuracies = compare_accuracies(mc, data_dict)
     accuracies_list.append(accuracies)
