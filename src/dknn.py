@@ -38,11 +38,7 @@ from scipy.spatial import distance
 
 FLAGS = tf.flags.FLAGS
 
-def get_tensorflow_session(config):
-  gpu_options = tf.GPUOptions()
-  gpu_options.per_process_gpu_memory_fraction=config['gpu_memory_fraction']
-  sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
-  return sess
+
 
 
 ###################################
@@ -185,9 +181,10 @@ class NearestNeighbor:
       raise NotImplementedError
 
 class NNGeod():
-  def __init__(self, neighbors, proto_neighbors):
+  def __init__(self, neighbors, proto_neighbors, neighbors_table_path):
     self.nb_neighbors = neighbors
     self.nb_proto_neighbors = proto_neighbors
+    self.neighbors_table_path = neighbors_table_path
   
   def closest_neighbor(self, x):
     dists = distance.cdist(x, self.X, 'euclidean')
@@ -195,9 +192,17 @@ class NNGeod():
     return closest_neighbor
   
   def add(self, X):
-    self.geodesic_kernel = hard_geodesics_euclidean_kernel(X, self.nb_proto_neighbors)
+    if os.path.exists(self.neighbors_table_path):
+      self.geodesic_kernel = np.load(self.neighbors_table_path)
+    
+    else:
+      self.geodesic_kernel = hard_geodesics_euclidean_kernel(X, self.nb_proto_neighbors)
+      if self.neighbors_table_path is not None:
+        np.save(self.neighbors_table_path, self.geodesic_kernel)
+
     self.train_neighbor_index = np.argpartition(self.geodesic_kernel, 
-                                                   kth=range(self.nb_neighbors-1), axis=1)[:,:self.nb_neighbors-1]
+                                                  kth=range(self.nb_neighbors-1), axis=1)[:,:self.nb_neighbors-1]
+      
     self.X = X
     return self
 
@@ -219,7 +224,7 @@ class NNGeod():
 
 class DkNNModel(Model):
   def __init__(self, neighbors, proto_neighbors, layers, get_activations, train_data, train_labels,
-               nb_classes, method, backend=1, number_bits=17, scope=None, nb_tables=200):
+               nb_classes, method, neighbors_table_path=None, backend=1, number_bits=17, scope=None, nb_tables=200):
     """
     Implements the DkNN algorithm. See https://arxiv.org/abs/1803.04765 for more details.
     :param neighbors: number of neighbors to find per layer.
@@ -248,15 +253,15 @@ class DkNNModel(Model):
     assert self.nb_train == train_data.shape[0]
     self.train_activations = get_activations(train_data)
     self.train_labels = train_labels
+    self.neighbors_table_path = neighbors_table_path
 
-    # Build locality-sensitive hashing tables for training representations
-    self.train_activations_querier = copy.copy(self.train_activations)
-    self.init_nn_querier()
-
-  def init_nn_querier(self):
+  def fit(self):
     """
     Initializes locality-sensitive hashing with FALCONN to find nearest neighbors in training data.
     """
+    # Build locality-sensitive hashing tables for training representations
+    self.train_activations_querier = copy.copy(self.train_activations)
+
     self.query_objects = {
     }  # contains the object that can be queried to find nearest neighbors at each layer.
     # mean of training data representation per layer (that needs to be substracted before
@@ -283,7 +288,7 @@ class DkNNModel(Model):
 
       elif self.method == 'geodesic':
         print('Constructing the NearestNeighborGeodesic table')
-        self.query_objects[layer] = NNGeod(self.neighbors, self.proto_neighbors)
+        self.query_objects[layer] = NNGeod(self.neighbors, self.proto_neighbors, self.neighbors_table_path)
         self.query_objects[layer].add(self.train_activations_querier[layer])
 
   def find_train_knns(self, data_activations):
