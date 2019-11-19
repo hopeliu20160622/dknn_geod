@@ -60,7 +60,7 @@ def train_model(mc):
             serial.save(model_filepath, model)
 
 
-def compare_accuracies(mc, data_dict, nb_neighbors):
+def compare_accuracies(mc, data_dict):
   # parse data_dict
   x_train = data_dict['x_train'] 
   labels_train = data_dict['labels_train']
@@ -173,7 +173,9 @@ def hyperparameter_selection(mc):
   for nb_neighbors in nb_neighbors_list:
     print("\n\n============ nb_neighbors:{} ============".format(nb_neighbors))
     tf.reset_default_graph()
-    accuracies = compare_accuracies(mc, data_dict, nb_neighbors)
+    
+    mc.nb_neighbors = nb_neighbors
+    accuracies = compare_accuracies(mc, data_dict)
     accuracies_list.append(accuracies)
 
   model_dir = mc.get_model_dir_name()
