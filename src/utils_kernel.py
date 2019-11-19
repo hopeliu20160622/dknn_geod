@@ -116,6 +116,8 @@ def hard_geodesics_euclidean_kernel_approx(features, n_neighbors):
 
     # We add one to n_neighbors since we exclude the identity as a neighbor
     labels, distances = p.knn_query(features, k = n_neighbors + 1)
+    distances = np.sqrt(distances) # knn_query returs squared euclidean norm
+
     # Convert the result in matrix form
     kng = np.zeros((num_elements, num_elements))
     for i, label in enumerate(labels):
@@ -126,7 +128,7 @@ def hard_geodesics_euclidean_kernel_approx(features, n_neighbors):
     dist_matrix_ = graph_shortest_path(kng,
                                        method='FW',
                                        directed=False)
-    kernel = (0.5)*dist_matrix_
+    kernel = (0.5)*dist_matrix_**2
     max_distance = np.max(kernel)+1
     kernel[kernel == 0]=max_distance
     return kernel
@@ -145,6 +147,8 @@ def hard_geodesics_euclidean_kernel_approx_sparse(features, n_neighbors):
 
     # We add one to n_neighbors since we exclude the identity as a neighbor
     neighbors_idx, distances = p.knn_query(features, k = n_neighbors + 1)
+    distances = np.sqrt(distances) # knn_query returs squared euclidean norm
+
     # Convert the result in matrix form
     I = np.array(list(range(num_elements))*(n_neighbors))
     J = neighbors_idx[:,1:].flatten('F')
