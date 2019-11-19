@@ -1,4 +1,5 @@
 import os
+import pandas as pd
 
 import tensorflow as tf
 from tensorflow.python.util import deprecation
@@ -57,7 +58,34 @@ def train_model(mc):
             serial.save(model_filepath, model)
 
 
+def compare_accuracies(nb_neighbors):
+  acc1 = 1
+  acc2 = 2
+  accuracies_dict = {'neighbors': nb_neighbors, 'DkNN': acc1, 'gDkNN':acc2}
+  return accuracies_dict
+
+def hyperparameter_selection(mc):
+  nb_neighbors_list = [2, 4, 8, 16, 32, 64, 128]
+
+  accuracies_list = []
+
+  # Instantiate and fit DkNN and gDkNN
+
+  for nb_neighbors in nb_neighbors_list:
+    print("nb_neighbors", nb_neighbors)
+    accuracies = compare_accuracies(nb_neighbors)
+    accuracies_list.append(accuracies)
+
+  model_dir = mc.get_model_dir_name()
+  experiments_results_path = os.path.join(model_dir, 'accuracies.pkl')
+  print('Saving Accuracies Table to {}'.format(experiments_results_path))
+
+  accuracies_df = pd.DataFrame(accuracies_list)
+  accuracies_df.to_pickle(path=experiments_results_path)
+
+
 if __name__ == '__main__':
   mc = ModelConfig(config_file='../configs/config_mnist.yaml',
                   root_dir='../results/')
-  train_model(mc)
+  #train_model(mc)
+  hyperparameter_selection(mc)
