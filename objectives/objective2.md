@@ -4,9 +4,9 @@
 - [] Explore implementation of the original DkNN and experiments already implemented in the model zoo from cleverhans https://github.com/tensorflow/cleverhans/tree/master/cleverhans/model_zoo/deep_k_nearest_neighbors. This can save a lot of time.
 
 # IMPLEMENT EFFICIENT GEODESIC KNN
-- [] Include efficient implementation of gkNN on the NNGeod class, code available from https://mosco.github.io/geodesicknn/geodesic_knn.pdf.
-- [] Continue institutionalization of the code.
-- [] Might be a very good idea to train models for MNIST, SVHN, GTSRB and save them to share through git.
+- [x] Include efficient implementation of gkNN on the NNGeod class, code available from https://mosco.github.io/geodesicknn/geodesic_knn.pdf.
+- [x] Continue institutionalization of the code.
+- [x] Might be a very good idea to train models for MNIST, SVHN, GTSRB and save them.
 
 # GENERAL ACCURACY
 To show potential benefits of the method, compare accuracies of softmax, DkNN and gDkNN (Table 1) on the following datasets:

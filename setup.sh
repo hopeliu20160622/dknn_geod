@@ -24,3 +24,6 @@ conda install -c akode falconn
 conda install -c conda-forge pybind11 # Needed for approx neighbors
 pip install hnswlib
 conda deactivate
+
+mkdir results/MNIST/
+mkdir results/CIFAR10/

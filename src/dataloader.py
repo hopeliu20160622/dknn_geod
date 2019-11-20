@@ -11,12 +11,16 @@ import numpy as np
 class SVHN(Dataset):
 #   """The SVHN dataset"""
     def __init__(self, train_start=0, train_end=73257, test_start=0, test_end=26032,
-                center=False, max_val=1., path='../data/svhn'):
+                center=False, max_val=1.):
         kwargs = locals()
         if '__class__' in kwargs:
             del kwargs['__class__']
-        super(SVHN, self).__init__(kwargs)
-        self.PATH=path
+        if kwargs is None:
+            kwargs = {}
+        if "self" in kwargs:
+            del kwargs["self"]
+        self.kwargs = kwargs
+        self.PATH='../data/svhn'
         packed = self.data_svhn(train_start=train_start,
                               train_end=train_end,
                               test_start=test_start,
@@ -28,7 +32,6 @@ class SVHN(Dataset):
             x_test = x_test * 2. - 1.
         x_train *= max_val
         x_test *= max_val
-
         self.x_train = x_train
         self.y_train = y_train
         self.x_test = x_test
@@ -66,7 +69,6 @@ class SVHN(Dataset):
         # convert class vectors to binary class matrices
         y_train = self.to_categorical(y_train, nb_classes)
         y_test = self.to_categorical(y_test, nb_classes)
-
         x_train = x_train[train_start:train_end, :, :, :]
         y_train = y_train[train_start:train_end, :]
         x_test = x_test[test_start:test_end, :]
@@ -100,6 +102,6 @@ class SVHN(Dataset):
     
     def to_categorical(self, y, nb_classes):
         res = np.zeros((y.shape[0], nb_classes))
-        res[y] = 1
-        del y
+        y = np.where(y==10, 0, y)
+        res[np.arange(res.shape[0]), y.reshape(-1)] = 1
         return res
