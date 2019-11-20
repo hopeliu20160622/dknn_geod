@@ -288,7 +288,8 @@ class DkNNModel(Model):
 
       elif self.method == 'geodesic':
         print('Constructing the NearestNeighborGeodesic table')
-        self.query_objects[layer] = NNGeod(self.neighbors, self.proto_neighbors, self.neighbors_table_path)
+        layer_geodesics_path = os.path.join(self.neighbors_table_path, 'geodesics_{}.npy'.format(layer))
+        self.query_objects[layer] = NNGeod(self.neighbors, self.proto_neighbors, layer_geodesics_path)
         self.query_objects[layer].add(self.train_activations_querier[layer])
 
   def find_train_knns(self, data_activations):

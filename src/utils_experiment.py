@@ -123,7 +123,7 @@ def compare_accuracies(mc, data_dict):
           train_data=x_train,
           train_labels=labels_train,
           method='geodesic',
-          neighbors_table_path=os.path.join(mc.get_model_dir_name(),'geodesics.npy'),
+          neighbors_table_path=mc.get_model_dir_name(),
           scope='dknn')
           
           dknn_geod.fit()
@@ -169,6 +169,7 @@ def hyperparameter_selection(mc):
   data_dict = get_data_dict(mc)
 
   nb_neighbors_list = [128, 64, 32, 16, 8, 4, 2]
+
   accuracies_list = []
   for nb_neighbors in nb_neighbors_list:
     print("\n\n============ nb_neighbors:{} ============".format(nb_neighbors))
@@ -189,5 +190,5 @@ def hyperparameter_selection(mc):
 if __name__ == '__main__':
   mc = ModelConfig(config_file='../configs/config_mnist.yaml',
                    root_dir='../results/')
-  #train_model(mc)
+  train_model(mc)
   hyperparameter_selection(mc)

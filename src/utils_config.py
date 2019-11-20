@@ -97,6 +97,7 @@ class ModelConfig(object):
     path = Path(data_filepath)
 
     if path.is_file():
+      print("Reading model from:\n {}".format(data_filepath))
       model = serial.load(data_filepath)
     
     else:
