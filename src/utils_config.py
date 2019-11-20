@@ -3,6 +3,7 @@ import os
 
 import tensorflow as tf
 from cleverhans.dataset import MNIST, CIFAR10
+from dataloader import SVHN
 from cleverhans.picklable_model import MLP, Conv2D, ReLU, Flatten, Linear, Softmax
 from cleverhans import serial
 
@@ -11,7 +12,8 @@ from pathlib import Path
 
 def dataset_loader(dataset_name, nb_train, nb_test):
     datasets_parser = {'MNIST':MNIST,
-                       'CIFAR10':CIFAR10}
+                       'CIFAR10':CIFAR10,
+                       'SVHN':SVHN}
     data_loader = datasets_parser[dataset_name]
     dataset = data_loader(train_start=0, train_end=nb_train, 
                           test_start=0, test_end=nb_test)
@@ -45,6 +47,8 @@ class ModelConfig(object):
         self.nb_classes = 10
       elif self.dataset_name=='CIFAR10':
         self.nb_classes = 10
+      elif self.dataset_name=='SVHN':
+        self.nb_classes = 10
   
   def get_model_dir_name(self, root_dir=None):
     if not root_dir:
@@ -77,6 +81,19 @@ class ModelConfig(object):
                 Linear(nb_classes),
                 Softmax()]
     elif self.dataset_name == 'CIFAR10':
+        nb_filters=64
+        nb_classes=self.nb_classes
+        input_shape=(None, 32, 32, 3)
+        layers = [Conv2D(nb_filters, (8, 8), (2, 2), "SAME"),
+                ReLU(),
+                Conv2D(nb_filters * 2, (6, 6), (2, 2), "VALID"),
+                ReLU(),
+                Conv2D(nb_filters * 2, (5, 5), (1, 1), "VALID"),
+                ReLU(),
+                Flatten(),
+                Linear(nb_classes),
+                Softmax()]
+    elif self.dataset_name == 'SVHN':
         nb_filters=64
         nb_classes=self.nb_classes
         input_shape=(None, 32, 32, 3)
