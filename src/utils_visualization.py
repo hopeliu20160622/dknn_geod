@@ -5,6 +5,7 @@ from sklearn.linear_model import LinearRegression
 
 #import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
+plt.style.use('ggplot')
 import seaborn as sns
 
 #from utils_experiment import parse_trajectory_layer_statistics
