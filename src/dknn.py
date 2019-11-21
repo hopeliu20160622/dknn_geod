@@ -196,13 +196,14 @@ class NNGeod():
       self.geodesic_kernel = np.load(self.neighbors_table_path)
     
     else:
-      self.geodesic_kernel = hard_geodesics_euclidean_kernel(X, self.nb_proto_neighbors)
+      self.geodesic_kernel = hard_geodesics_euclidean_kernel(X, self.nb_proto_neighbors, self.nb_neighbors)
       if self.neighbors_table_path is not None:
         np.save(self.neighbors_table_path, self.geodesic_kernel)
 
-    self.train_neighbor_index = np.argpartition(self.geodesic_kernel, 
-                                                  kth=range(self.nb_neighbors-1), axis=1)[:,:self.nb_neighbors-1]
-      
+    #self.train_neighbor_index = np.argpartition(self.geodesic_kernel, 
+    #                                              kth=range(self.nb_neighbors-1), axis=1)[:,:self.nb_neighbors-1]
+    self.train_neighbor_index = self.geodesic_kernel[:,:,1][:,1:].astype(int)
+
     self.X = X
     return self
 

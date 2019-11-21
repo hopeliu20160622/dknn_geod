@@ -449,8 +449,8 @@ cdef void dijkstra_directed_one_row(
                                   v.val + dist)
 
           #v has now been scanned: add the distance to the results
-          knn[i_node, k, 0] = v.val
-          knn[i_node, k, 1] = v.index
+          knn[i_node, kcount, 0] = v.val
+          knn[i_node, kcount, 1] = v.index
           kcount += 1
 
 @cython.boundscheck(False)
@@ -534,6 +534,6 @@ cdef void dijkstra_one_row(unsigned int i_node,
                                   v.val + dist)
 
           #v has now been scanned: add the distance to the results
-          knn[i_node, k, 0] = v.val
-          knn[i_node, k, 1] = v.index
+          knn[i_node, kcount, 0] = v.val
+          knn[i_node, kcount, 1] = v.index
           kcount += 1

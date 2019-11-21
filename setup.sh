@@ -24,7 +24,9 @@ conda install -c akode falconn
 conda install -c conda-forge pybind11 # Needed for approx neighbors
 pip install hnswlib
 conda install -c anaconda cython
-python setup_fast_gknn.py build_ext --inplace
+cd src/
+python setup_fast_gknn.py build_ext --inplance
+cd ../
 conda deactivate
 
 mkdir results/MNIST/
