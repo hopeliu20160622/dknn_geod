@@ -25,7 +25,7 @@ conda install -c conda-forge pybind11 # Needed for approx neighbors
 pip install hnswlib
 conda install -c anaconda cython
 cd src/
-python setup_fast_gknn.py build_ext --inplance
+python setup_fast_gknn.py build_ext --inplace
 cd ../
 conda deactivate
 
