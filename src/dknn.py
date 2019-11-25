@@ -441,10 +441,10 @@ class DkNNModel(Model):
     # Get neighbors
     new_knns_ind, new_knns_labels = self.find_train_knns(new_activations)
 
-    assert all([v.shape == (new_x.shape[0], self.neighbors)
-                for v in new_knns_ind.values()])
-    assert all([v.shape == (new_x.shape[0], self.neighbors)
-                for v in new_knns_ind.values()])
+    #assert all([v.shape == (new_x.shape[0], self.neighbors)
+    #            for v in new_knns_ind.values()])
+    #assert all([v.shape == (new_x.shape[0], self.neighbors)
+    #            for v in new_knns_ind.values()])
 
     # Nonconformity
     new_knns_not_in_class = self.nonconformity(new_knns_labels)
