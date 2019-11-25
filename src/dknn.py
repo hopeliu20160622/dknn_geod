@@ -202,7 +202,7 @@ class NNGeod():
 
     #self.train_neighbor_index = np.argpartition(self.geodesic_kernel, 
     #                                              kth=range(self.nb_neighbors-1), axis=1)[:,:self.nb_neighbors-1]
-    self.train_neighbor_index = self.geodesic_kernel[:,:,1][:,1:].astype(int)
+    self.train_neighbor_index = self.geodesic_kernel[:,:,1][:,1:].astype(int)[:,:self.nb_neighbors-1]
 
     self.X = X
     return self
