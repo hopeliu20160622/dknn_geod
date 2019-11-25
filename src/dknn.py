@@ -224,7 +224,7 @@ class NNGeod():
 ###################################
 
 class DkNNModel(Model):
-  def __init__(self, neighbors, proto_neighbors, layers, get_activations, train_data, train_labels,
+  def __init__(self, sess, model, neighbors, proto_neighbors, layers, train_data, train_labels,
                nb_classes, method, neighbors_table_path=None, backend=1, number_bits=17, scope=None, nb_tables=200):
     """
     Implements the DkNN algorithm. See https://arxiv.org/abs/1803.04765 for more details.
@@ -238,6 +238,8 @@ class DkNNModel(Model):
     :param nb_tables: number of tables used by FALCONN to perform locality-sensitive hashing.
     """
     super(DkNNModel, self).__init__(nb_classes=nb_classes, scope=scope)
+    self.sess = sess
+    self.model = model
     self.neighbors = neighbors
     self.proto_neighbors = proto_neighbors
     self.method = method
@@ -245,16 +247,38 @@ class DkNNModel(Model):
     self.number_bits = number_bits
     self.backend = backend
     self.layers = layers
-    self.get_activations = get_activations
     self.nb_cali = -1
     self.calibrated = False
 
     # Compute training data activations
     self.nb_train = train_labels.shape[0]
     assert self.nb_train == train_data.shape[0]
-    self.train_activations = get_activations(train_data)
+    
     self.train_labels = train_labels
     self.neighbors_table_path = neighbors_table_path
+
+    # Build graph
+    self.build_graph()
+    self.train_activations = self.get_activations(train_data)
+  
+    # Define callable that returns a dictionary of all activations for a dataset
+  def build_graph(self):
+      img_rows, img_cols, nchannels = 28, 28, 1
+      nb_classes = 10
+      self.x_ph = tf.placeholder(tf.float32, shape=(None, img_rows, img_cols, nchannels))
+      self.y_ph = tf.placeholder(tf.float32, shape=(None, nb_classes))
+      
+      fprop = self.model.fprop(self.x_ph)
+      self.layer_sym_ph = {layer: tf.layers.flatten(fprop[layer]) for layer in self.layers}
+  
+  # Define callable that returns a dictionary of all activations for a dataset
+  def get_activations(self, data, batch_size=10):
+      data_activations = {}
+      for layer in self.layers:
+          data_activations[layer] = batch_eval(self.sess, [self.x_ph],
+                                                     [self.layer_sym_ph[layer]], [data],
+                                          args={'batch_size': batch_size})[0]
+      return data_activations
 
   def fit(self):
     """
@@ -441,10 +465,10 @@ class DkNNModel(Model):
     # Get neighbors
     new_knns_ind, new_knns_labels = self.find_train_knns(new_activations)
 
-    #assert all([v.shape == (new_x.shape[0], self.neighbors)
-    #            for v in new_knns_ind.values()])
-    #assert all([v.shape == (new_x.shape[0], self.neighbors)
-    #            for v in new_knns_ind.values()])
+    assert all([v.shape == (new_x.shape[0], self.neighbors)
+               for v in new_knns_ind.values()])
+    assert all([v.shape == (new_x.shape[0], self.neighbors)
+               for v in new_knns_ind.values()])
 
     # Nonconformity
     new_knns_not_in_class = self.nonconformity(new_knns_labels)
