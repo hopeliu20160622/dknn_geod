@@ -434,7 +434,7 @@ cdef void dijkstra_directed_one_row(
         v = remove_min(heap)
         v.state = 2  # 2 -> SCANNED
         
-        if kcount<(k+1):
+        if kcount<k:
 
           for i from indptr[v.index] <= i < indptr[v.index + 1]:
               current_neighbor = &nodes[neighbors[i]]
@@ -501,13 +501,13 @@ cdef void dijkstra_one_row(unsigned int i_node,
         nodes[i_N].state = 0  # 0 -> NOT_IN_HEAP
         nodes[i_N].val = 0
 
-    insert_node(heap, &nodes[i_node])
+    insert_node(heap, &nodes[i_node]) 
 
     while heap.min_node:
         v = remove_min(heap)
         v.state = 2  # 2 -> SCANNED
         
-        if kcount<(k+1):
+        if kcount<k:
 
           for i from indptr1[v.index] <= i < indptr1[v.index + 1]:
               current_neighbor = &nodes[neighbors1[i]]
