@@ -74,35 +74,22 @@ def compare_accuracies(mc, data_dict):
 
   with mc.get_tensorflow_session() as sess:
       with tf.variable_scope('dknn'):
-          # Define input TF placeholder.
-          x = tf.placeholder(tf.float32,
-                            shape=(None, img_rows, img_cols, nchannels))
-          #y = tf.placeholder(tf.float32,
-          #                  shape=(None, mc.nb_classes))
           
           model_dir = mc.get_model_dir_name()
           model = mc.load_model(model_dir=model_dir)
-
-          # Define callable that returns a dictionary of all activations for a dataset
-          def get_activations(data):
-              data_activations = {}
-              for layer in layers:
-                  layer_sym = tf.layers.flatten(model.get_layer(x, layer))
-                  data_activations[layer] = batch_eval(sess, [x], [layer_sym], [data],
-                                                    args={'batch_size': mc.batch_size})[0]
-              return data_activations
 
           # Extract representations for the training and calibration data at each layer of interest to the DkNN.
           layers = ['ReLU1', 'ReLU3', 'ReLU5', 'logits']
 
           #Euclidean DKNN
           dknn = DkNNModel(
-          neighbors = mc.nb_neighbors,
-          proto_neighbors = mc.nb_proto_neighbors,
-          backend = mc.backend,
+          sess=sess,
+          model=model,
+          neighbors=mc.nb_neighbors,
+          proto_neighbors=mc.nb_proto_neighbors,
+          backend=mc.backend,
           nb_classes=mc.nb_classes,
           layers=layers,
-          get_activations=get_activations,
           train_data=x_train,
           train_labels=labels_train,
           method='euclidean',
@@ -114,12 +101,13 @@ def compare_accuracies(mc, data_dict):
 
           # Geodesic DKNN
           dknn_geod = DkNNModel(
-          neighbors = mc.nb_neighbors,
-          proto_neighbors = mc.nb_proto_neighbors,
-          backend = mc.backend,
+          sess=sess,
+          model=model,
+          neighbors=mc.nb_neighbors,
+          proto_neighbors=mc.nb_proto_neighbors,
+          backend=mc.backend,
           nb_classes=mc.nb_classes,
           layers=layers,
-          get_activations=get_activations,
           train_data=x_train,
           train_labels=labels_train,
           method='geodesic',
