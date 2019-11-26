@@ -31,6 +31,8 @@ from cleverhans import serial
 from pathlib import Path
 from utils_kernel import euclidean_kernel, hard_geodesics_euclidean_kernel
 from scipy.spatial import distance
+from fast_gknn import fast_gknn
+from scipy import sparse
 
 ###################################
 # TENSORFLOW UTILS
@@ -38,11 +40,8 @@ from scipy.spatial import distance
 
 FLAGS = tf.flags.FLAGS
 
-
-
-
 ###################################
-# NEAREST NEIGHBOR CLASSES
+# PAPERNOT NEAREST NEIGHBOR CLASS
 ###################################
 
 class NearestNeighbor:
@@ -119,7 +118,7 @@ class NearestNeighbor:
       dimension,
     )
 
-  def _find_knns_falconn(self, x, output):
+  def _find_knns_falconn(self, x, output, nb_neighbors):
     # Late falconn query_object construction
     # Since I suppose there might be an error
     # if table.setup() will be called after
@@ -134,7 +133,7 @@ class NearestNeighbor:
     for i in range(x.shape[0]):
       query_res = self._falconn_query_object.find_k_nearest_neighbors(
         x[i],
-        self._NEIGHBORS
+        nb_neighbors
       )
       try:
         output[i, :] = query_res
@@ -146,10 +145,10 @@ class NearestNeighbor:
 
     return missing_indices
 
-  def _find_knns_faiss(self, x, output):
+  def _find_knns_faiss(self, x, output, nb_neighbors):
     neighbor_distance, neighbor_index = self._faiss_index.search(
       x,
-      self._NEIGHBORS
+      nb_neighbors
     )
 
     missing_indices = neighbor_distance == -1
@@ -172,43 +171,88 @@ class NearestNeighbor:
     else:
       raise NotImplementedError
 
-  def find_knns(self, x, output):
+  def find_knns(self, x, output, nb_neighbors=None):
+    if nb_neighbors is None:
+      nb_neighbors=self._NEIGHBORS
     if self._BACKEND == 'FALCONN':
-      return self._find_knns_falconn(x, output)
+      return self._find_knns_falconn(x, output, nb_neighbors)
     elif self._BACKEND == 'FAISS':
-      return self._find_knns_faiss(x, output)
+      return self._find_knns_faiss(x, output, nb_neighbors)
     else:
       raise NotImplementedError
 
+###################################
+# GEODEISC NEAREST NEIGHBOR CLASS
+###################################
+
 class NNGeod():
-  def __init__(self, neighbors, proto_neighbors, neighbors_table_path):
+  def __init__(self, neighbors, backend, dimension, number_bits,
+               nb_tables, proto_neighbors, neighbors_table_path):
     self.nb_neighbors = neighbors
+    self.backend = backend
+    self.dimension = dimension
+    self.number_bits = number_bits
+    self.nb_tables = nb_tables
     self.nb_proto_neighbors = proto_neighbors
     self.neighbors_table_path = neighbors_table_path
   
   def closest_neighbor(self, x):
-    dists = distance.cdist(x, self.X, 'euclidean')
-    closest_neighbor = np.argmin(dists, axis=1)
-    return closest_neighbor
+   dists = distance.cdist(x, self.X, 'euclidean')
+   closest_neighbor = np.argmin(dists, axis=1)
+   return closest_neighbor
+
+  def compute_geodesic_neighbors(self, features):
+    # Approximate Neighbors
+    nb_obs = features.shape[0]
+    self.NN = NearestNeighbor(backend=self.backend,
+                                  dimension=self.dimension,
+                                  number_bits=self.number_bits,
+                                  neighbors=self.nb_proto_neighbors+1, # Add one neighbor to compensate self as neighbor
+                                  nb_tables=self.nb_tables)
+    self.NN.add(features)
+
+    if os.path.exists(self.neighbors_table_path):
+      gknn = np.load(self.neighbors_table_path)
+    else:
+      # Use FALCONN to find indices of nearest neighbors in training data.
+      neighbors_idx = np.zeros((nb_obs, self.nb_proto_neighbors+1), dtype=np.int32)-1
+      distances = np.zeros((nb_obs, self.nb_proto_neighbors), dtype=np.int32)-1
+
+      knn_missing_indices = self.NN.find_knns(features, neighbors_idx)
+
+      # Filter first neighbor, by construction is same point
+      neighbors_idx = neighbors_idx[:,1:]
+
+      # Replace missing neighbors (-1) with self observation
+      neighbors_idx[neighbors_idx<0] = np.where(neighbors_idx<0)[0]
+
+      I = np.array(list(range(nb_obs))*(self.nb_proto_neighbors))
+      J = neighbors_idx.flatten('F')
+      V = np.linalg.norm(features[I] - features[J], axis=1)
+
+      kng = sparse.coo_matrix((V,(I,J)),shape=(nb_obs,nb_obs))
+
+      gknn = fast_gknn(kng, directed=False, k=self.nb_neighbors)
+      np.save(self.neighbors_table_path, gknn)
+
+    return gknn
   
   def add(self, X):
-    if os.path.exists(self.neighbors_table_path):
-      self.geodesic_kernel = np.load(self.neighbors_table_path)
     
-    else:
-      self.geodesic_kernel = hard_geodesics_euclidean_kernel(X, self.nb_proto_neighbors, self.nb_neighbors)
-      if self.neighbors_table_path is not None:
-        np.save(self.neighbors_table_path, self.geodesic_kernel)
-
-    #self.train_neighbor_index = np.argpartition(self.geodesic_kernel, 
-    #                                              kth=range(self.nb_neighbors-1), axis=1)[:,:self.nb_neighbors-1]
+    self.geodesic_kernel = self.compute_geodesic_neighbors(features=X)
     self.train_neighbor_index = self.geodesic_kernel[:,:,1][:,1:].astype(int)[:,:self.nb_neighbors-1]
-
     self.X = X
+
     return self
 
   def find_knns(self, x, output):
-    closest_neighbor_index = self.closest_neighbor(x)
+    closest_neighbor_index = np.zeros((len(x), 1), dtype=np.int32)-1
+    knn_missing_indices = self.NN.find_knns(x, closest_neighbor_index, nb_neighbors=1)
+
+    if np.sum(closest_neighbor_index<0) > 0:
+      print('Missings approx nearest neighbors, computing real nearest neighbor!')
+      missings = closest_neighbor_index<0
+      closest_neighbor_index[missings] = self.closest_neighbor(x[missings])
 
     for i in range(x.shape[0]):
       neighbor_index = self.train_neighbor_index[closest_neighbor_index[i], :]
@@ -290,7 +334,13 @@ class DkNNModel(Model):
       elif self.method == 'geodesic':
         print('Constructing the NearestNeighborGeodesic table')
         layer_geodesics_path = os.path.join(self.neighbors_table_path, 'geodesics_{}.npy'.format(layer))
-        self.query_objects[layer] = NNGeod(self.neighbors, self.proto_neighbors, layer_geodesics_path)
+        self.query_objects[layer] = NNGeod(neighbors = self.neighbors,
+                                           backend=self.backend,
+                                           dimension=self.train_activations_querier[layer].shape[1],
+                                           number_bits=self.number_bits,
+                                           nb_tables=self.nb_tables,
+                                           proto_neighbors = self.proto_neighbors,
+                                           neighbors_table_path = layer_geodesics_path)
         self.query_objects[layer].add(self.train_activations_querier[layer])
 
   def find_train_knns(self, data_activations):
