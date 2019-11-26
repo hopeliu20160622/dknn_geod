@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 from matplotlib import pyplot as plt
 
 def binary_search_helper(x, v, f, l, u, y=None, eps=1e-5):
@@ -58,9 +59,9 @@ def binary_search_helper(x, v, f, l, u, y=None, eps=1e-5):
     #ax2.set_title('closest other mean='+str(temp))
     #plt.show()
 
-    print('Binary seach took', steps, 'steps')
-    print('Found delta', s_delta)
-    print('Inf norm', inf_norm)
+    #print('Binary seach took', steps, 'steps')
+    #print('Found delta', s_delta)
+    #print('Inf norm', inf_norm)
     return s_delta, inf_norm
 
 def binary_search(x, v, f, y=None, eps=1e-5):
@@ -81,13 +82,13 @@ def get_deltas(X, Y, means, labels, f, eps=1e-5):
 
     delta_list = []
     inf_norm_list = []
-    for x, y in zip(X, Y):
+    for x, y in tqdm(zip(X, Y), total=X.shape[0]):
         # to avoid computing smallest delta for every mean, we use the
         # heuristic of finding the nearest mean from x (which has different
         # label) and compute the smallest delta for that mean only
         ypred = f(x)[0]  # compare against the model prediction
         if y != ypred:
-            print('wrong prediction')
+            #print('wrong prediction')
             delta_list.append(0)
             inf_norm_list.append(0)
             continue

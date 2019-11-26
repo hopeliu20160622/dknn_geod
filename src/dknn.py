@@ -509,7 +509,7 @@ class DkNNModel(Model):
     print("DkNN calibration complete.")
 
   def predict(self, new_x):
-    print("Predicting.")
+    #print("Predicting.")
     # Get activations
     new_activations = self.get_activations(new_x)
     # Get neighbors
@@ -524,5 +524,5 @@ class DkNNModel(Model):
     new_knns_not_in_class = self.nonconformity(new_knns_labels)
     # Predictions
     preds, confs, creds = self.preds_conf_cred(new_knns_not_in_class)
-    print("Prediction complete.")
+    #print("Prediction complete.")
     return preds, confs, creds
