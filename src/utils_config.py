@@ -44,10 +44,13 @@ class ModelConfig(object):
       self.copy = copy
 
       if self.dataset_name=='MNIST':
+        self.img_rows, self.img_cols, self.nchannels = 28, 28, 1
         self.nb_classes = 10
       elif self.dataset_name=='CIFAR10':
+        self.img_rows, self.img_cols, self.nchannels = 32, 32, 3
         self.nb_classes = 10
       elif self.dataset_name=='SVHN':
+        self.img_rows, self.img_cols, self.nchannels = 32, 32, 3
         self.nb_classes = 10
   
   def get_model_dir_name(self, root_dir=None):
