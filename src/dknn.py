@@ -268,8 +268,9 @@ class NNGeod():
 ###################################
 
 class DkNNModel(Model):
-  def __init__(self, sess, model, neighbors, proto_neighbors, layers, train_data, train_labels,
-               nb_classes, method, neighbors_table_path=None, backend=1, number_bits=17, scope=None, nb_tables=200):
+  def __init__(self, sess, model, neighbors, proto_neighbors, layers, 
+               train_data, train_labels, img_rows, img_cols, nchannels, nb_classes, 
+               method, neighbors_table_path=None, backend=1, number_bits=17, scope=None, nb_tables=200):
     """
     Implements the DkNN algorithm. See https://arxiv.org/abs/1803.04765 for more details.
     :param neighbors: number of neighbors to find per layer.
@@ -297,6 +298,10 @@ class DkNNModel(Model):
     # Compute training data activations
     self.nb_train = train_labels.shape[0]
     assert self.nb_train == train_data.shape[0]
+
+    # Input data dimensions
+    self.img_rows, self.img_cols, self.nchannels = img_rows, img_cols, nchannels
+    self.nb_classes = nb_classes
     
     self.train_labels = train_labels
     self.neighbors_table_path = neighbors_table_path
@@ -307,10 +312,8 @@ class DkNNModel(Model):
   
     # Define callable that returns a dictionary of all activations for a dataset
   def build_graph(self):
-      img_rows, img_cols, nchannels = 28, 28, 1
-      nb_classes = 10
-      self.x_ph = tf.placeholder(tf.float32, shape=(None, img_rows, img_cols, nchannels))
-      self.y_ph = tf.placeholder(tf.float32, shape=(None, nb_classes))
+      self.x_ph = tf.placeholder(tf.float32, shape=(None, self.img_rows, self.img_cols, self.nchannels))
+      self.y_ph = tf.placeholder(tf.float32, shape=(None, self.nb_classes))
       
       fprop = self.model.fprop(self.x_ph)
       self.layer_sym_ph = {layer: tf.layers.flatten(fprop[layer]) for layer in self.layers}
