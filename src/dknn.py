@@ -26,7 +26,7 @@ from cleverhans.loss import CrossEntropy
 from cleverhans.dataset import MNIST
 from cleverhans.model import Model
 from cleverhans.train import train
-from cleverhans.utils_tf import batch_eval, model_eval
+from cleverhans.evaluation import batch_eval
 from cleverhans import serial
 from pathlib import Path
 from utils_kernel import euclidean_kernel, hard_geodesics_euclidean_kernel
@@ -322,9 +322,10 @@ class DkNNModel(Model):
   def get_activations(self, data, batch_size=10):
       data_activations = {}
       for layer in self.layers:
-          data_activations[layer] = batch_eval(self.sess, [self.x_ph],
-                                                     [self.layer_sym_ph[layer]], [data],
-                                          args={'batch_size': batch_size})[0]
+          data_activations[layer] = batch_eval(sess=self.sess, 
+                                               tf_inputs=[self.x_ph],
+                                               tf_outputs=[self.layer_sym_ph[layer]],
+                                               numpy_inputs=[data], batch_size=batch_size)[0]
       return data_activations
 
   def fit(self):
@@ -350,7 +351,7 @@ class DkNNModel(Model):
       self.centers[layer] = center
 
       if self.method == 'euclidean':
-        print('Constructing the NearestNeighbor table')
+        print('Constructing the NearestNeighbor table layer {}'.format(layer))
         self.query_objects[layer] = NearestNeighbor(backend=self.backend,
                                                     dimension=self.train_activations_querier[layer].shape[1],
                                                     number_bits=self.number_bits,
@@ -359,7 +360,7 @@ class DkNNModel(Model):
         self.query_objects[layer].add(self.train_activations_querier[layer])
 
       elif self.method == 'geodesic':
-        print('Constructing the NearestNeighborGeodesic table')
+        print('Constructing the GeodesicNearestNeighbor table layer {}'.format(layer))
         layer_geodesics_path = os.path.join(self.neighbors_table_path, 'geodesics_{}.npy'.format(layer))
         self.query_objects[layer] = NNGeod(neighbors = self.neighbors,
                                            backend=self.backend,
@@ -509,7 +510,7 @@ class DkNNModel(Model):
     self.cali_nonconformity = np.trim_zeros(cali_knns_not_in_l_sorted, trim='f')
     self.nb_cali = self.cali_nonconformity.shape[0]
     self.calibrated = True
-    print("DkNN calibration complete.")
+    print("Completed calibration.\n")
 
   def predict(self, new_x):
     #print("Predicting.")

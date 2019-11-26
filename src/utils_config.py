@@ -117,11 +117,11 @@ class ModelConfig(object):
     path = Path(data_filepath)
 
     if path.is_file():
-      print("Reading model from:\n {}".format(data_filepath))
+      print('Loading model from:\n {}'.format(data_filepath)+'\n')
       model = serial.load(data_filepath)
     
     else:
-      print("Model path {} does not exist".format(data_filepath))
+      print('Model path {} does not exist'.format(data_filepath))
       
     return model
 
