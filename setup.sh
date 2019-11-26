@@ -21,9 +21,8 @@ conda install -c anaconda pylint
 conda install -c anaconda pyyaml
 pip install cleverhans
 conda install -c akode falconn
-conda install -c conda-forge pybind11 # Needed for approx neighbors
-pip install hnswlib
 conda install -c anaconda cython
+conda install -c conda-forge keras==2.2.4
 cd src/
 python setup_fast_gknn.py build_ext --inplace
 cd ../
