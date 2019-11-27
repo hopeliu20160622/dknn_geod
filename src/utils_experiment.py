@@ -23,19 +23,17 @@ def train_model(mc):
     x_train, y_train = dataset.get_set('train')
     x_test, y_test = dataset.get_set('test')
     
-    # Use Image Parameters.
-    img_rows, img_cols, nchannels = x_train.shape[1:4]
-    
     with mc.get_tensorflow_session() as sess:
         with tf.variable_scope('dknn'):
             # Define input TF placeholder.
             x = tf.placeholder(tf.float32,
-                               shape=(None, img_rows, img_cols, nchannels))
+                               shape=(None, mc.img_rows, mc.img_cols, mc.nchannels))
             y = tf.placeholder(tf.float32,
                                shape=(None, mc.nb_classes))
 
             # Define a model.
-            model = mc.get_model()
+            #model = make_wresnet(scope='dknn')
+            model = mc.get_model(scope='dknn')
             preds = model.get_logits(x)
             loss = CrossEntropy(model, smoothing=0.)
 
@@ -48,8 +46,9 @@ def train_model(mc):
             # Train the model
             train_params = {'nb_epochs': mc.max_epochs,
                             'batch_size': mc.batch_size, 
-                            'learning_rate': mc.learning_rate}
-            
+                            'learning_rate': mc.learning_rate,
+                            'loss_threshold': mc.loss_threshold}
+
             model_dir = mc.get_model_dir_name()
             if not os.path.exists(model_dir):
                 os.mkdir(model_dir)

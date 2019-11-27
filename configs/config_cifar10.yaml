@@ -4,9 +4,10 @@ architecture: mlp
 device: cpu
 train_parameters:
   max_epochs: 6
-  learning_rate: 0.001
+  learning_rate: 0.0001
   lr_scheduler_step_size: 100
-  batch_size: 500
+  loss_threshold: 100000000
+  batch_size: 16
   nb_random_seeds: 2
   weight_decay: 0.0001
   nb_train: 1000

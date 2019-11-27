@@ -5,6 +5,7 @@ import tensorflow as tf
 from cleverhans.dataset import MNIST, CIFAR10
 from dataloader import SVHN
 from cleverhans.picklable_model import MLP, Conv2D, ReLU, Flatten, Linear, Softmax
+from cleverhans.model_zoo.madry_lab_challenges.cifar10_model import make_wresnet
 from cleverhans import serial
 
 from pathlib import Path
@@ -29,6 +30,7 @@ class ModelConfig(object):
       self.max_epochs = config['train_parameters']['max_epochs']
       self.learning_rate = config['train_parameters']['learning_rate']
       self.lr_scheduler_step_size = config['train_parameters']['lr_scheduler_step_size']
+      self.loss_threshold = config['train_parameters']['loss_threshold']
       self.batch_size = config['train_parameters']['nb_random_seeds']
       self.nb_random_seeds = config['train_parameters']['nb_random_seeds']
       self.weight_decay = config['train_parameters']['weight_decay']
@@ -67,49 +69,25 @@ class ModelConfig(object):
     model_dir = os.path.join(model_parent_dir, '_'.join(model_path))
     return model_dir
 
-  def get_model(self):
+  def get_model(self, scope):
     """The model for the picklable models tutorial.
     """
     if self.dataset_name == 'MNIST':
-        nb_filters=64
-        nb_classes=self.nb_classes
-        input_shape=(None, 28, 28, 1)
-        layers = [Conv2D(nb_filters, (8, 8), (2, 2), "SAME"),
-                ReLU(),
-                Conv2D(nb_filters * 2, (6, 6), (2, 2), "VALID"),
-                ReLU(),
-                Conv2D(nb_filters * 2, (5, 5), (1, 1), "VALID"),
-                ReLU(),
-                Flatten(),
-                Linear(nb_classes),
-                Softmax()]
+      nb_filters=64
+      nb_classes=self.nb_classes
+      input_shape=(None, 28, 28, 1)
+      layers = [Conv2D(nb_filters, (8, 8), (2, 2), "SAME"),
+              ReLU(),
+              Conv2D(nb_filters * 2, (6, 6), (2, 2), "VALID"),
+              ReLU(),
+              Conv2D(nb_filters * 2, (5, 5), (1, 1), "VALID"),
+              ReLU(),
+              Flatten(),
+              Linear(nb_classes),
+              Softmax()]
+      model = MLP(layers, input_shape)
     elif self.dataset_name == 'CIFAR10':
-        nb_filters=64
-        nb_classes=self.nb_classes
-        input_shape=(None, 32, 32, 3)
-        layers = [Conv2D(nb_filters, (8, 8), (2, 2), "SAME"),
-                ReLU(),
-                Conv2D(nb_filters * 2, (6, 6), (2, 2), "VALID"),
-                ReLU(),
-                Conv2D(nb_filters * 2, (5, 5), (1, 1), "VALID"),
-                ReLU(),
-                Flatten(),
-                Linear(nb_classes),
-                Softmax()]
-    elif self.dataset_name == 'SVHN':
-        nb_filters=64
-        nb_classes=self.nb_classes
-        input_shape=(None, 32, 32, 3)
-        layers = [Conv2D(nb_filters, (8, 8), (2, 2), "SAME"),
-                ReLU(),
-                Conv2D(nb_filters * 2, (6, 6), (2, 2), "VALID"),
-                ReLU(),
-                Conv2D(nb_filters * 2, (5, 5), (1, 1), "VALID"),
-                ReLU(),
-                Flatten(),
-                Linear(nb_classes),
-                Softmax()]
-    model = MLP(layers, input_shape)
+      model = make_wresnet(scope=scope)
     return model
   
   def load_model(self, model_dir):

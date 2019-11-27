@@ -14,6 +14,7 @@ conda install -c anaconda seaborn==0.9.0
 
 conda install -c anaconda tensorflow=1.13.1
 #conda install -c anaconda tensorflow-gpu=1.13.1
+conda install -c conda-forge keras==2.2.4
 
 conda install -c conda-forge jupyterlab
 ipython kernel install --user --name=gdknn
@@ -22,7 +23,6 @@ conda install -c anaconda pyyaml
 pip install cleverhans
 conda install -c akode falconn
 conda install -c anaconda cython
-conda install -c conda-forge keras==2.2.4
 cd src/
 python setup_fast_gknn.py build_ext --inplace
 cd ../
