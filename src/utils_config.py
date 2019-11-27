@@ -104,7 +104,9 @@ class ModelConfig(object):
     return model
 
   def get_tensorflow_session(self):
-    gpu_options = tf.GPUOptions()
-    gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_fraction
-    sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+    #gpu_options = tf.GPUOptions()
+    #gpu_options.per_process_gpu_memory_fraction = self.gpu_memory_fraction
+    #sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+    config = tf.ConfigProto(device_count = {'GPU': 1})
+    sess = tf.Session(config=config)
     return sess
