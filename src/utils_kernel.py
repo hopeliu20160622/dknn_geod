@@ -9,7 +9,7 @@ from scipy import sparse
 from fast_gknn import fast_gknn
 
 import time
-import hnswlib
+#import hnswlib
 
 ##########################################################################
 # KERNEL TRANSFORMATIONS
