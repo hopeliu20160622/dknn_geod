@@ -39,6 +39,7 @@ class ModelConfig(object):
       self.nb_neighbors = config['nn_parameters']['nb_neighbors']
       self.nb_cali = config['nn_parameters']['nb_cali']
       self.backend = config['nn_parameters']['backend']
+      self.hash_hypar = config['nn_parameters']['hash_hypar']
       
       self.root_dir = root_dir
       self.copy = copy

@@ -17,3 +17,4 @@ nn_parameters:
   nb_neighbors: 128
   nb_cali: 750
   backend: FALCONN
+  hash_hypar: 600

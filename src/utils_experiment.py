@@ -1,4 +1,5 @@
 import os
+import time
 import numpy as np
 import pandas as pd
 
@@ -60,7 +61,7 @@ def train_model(mc):
             serial.save(model_filepath, model)
 
 
-def compare_accuracies(mc, data_dict):
+def compare_accuracies(mc, data_dict, nb_neighbors_list):
   # parse data_dict
   x_train = data_dict['x_train'] 
   labels_train = data_dict['labels_train']
@@ -88,6 +89,9 @@ def compare_accuracies(mc, data_dict):
           neighbors=mc.nb_neighbors,
           proto_neighbors=mc.nb_proto_neighbors,
           backend=mc.backend,
+          img_rows=mc.img_rows,
+          img_cols=mc.img_cols,
+          nchannels=mc.nchannels,
           nb_classes=mc.nb_classes,
           layers=layers,
           train_data=x_train,
@@ -95,9 +99,9 @@ def compare_accuracies(mc, data_dict):
           method='euclidean',
           scope='dknn')
           
+          start = time.time()
           dknn.fit()
-          dknn.calibrate(x_cali, labels_cali)
-          preds_knn, _, _ = dknn.predict(x_test)
+          print("Fit time: {}".format(time.time()-start))
 
           # Geodesic DKNN
           dknn_geod = DkNNModel(
@@ -106,6 +110,9 @@ def compare_accuracies(mc, data_dict):
           neighbors=mc.nb_neighbors,
           proto_neighbors=mc.nb_proto_neighbors,
           backend=mc.backend,
+          img_rows=mc.img_rows,
+          img_cols=mc.img_cols,
+          nchannels=mc.nchannels,
           nb_classes=mc.nb_classes,
           layers=layers,
           train_data=x_train,
@@ -114,14 +121,37 @@ def compare_accuracies(mc, data_dict):
           neighbors_table_path=mc.get_model_dir_name(),
           scope='dknn')
           
+          start = time.time()
           dknn_geod.fit()
-          dknn_geod.calibrate(x_cali, labels_cali)
-          preds_geod, _, _ = dknn_geod.predict(x_test)
+          print("Fit time: {}".format(time.time()-start))
 
-  dknn_acc = (preds_knn==np.argmax(y_test, axis=1)).mean()
-  gdknn_acc = (preds_geod==np.argmax(y_test, axis=1)).mean()
-  accuracies_dict = {'neighbors': mc.nb_neighbors, 'DkNN': dknn_acc, 'gDkNN': gdknn_acc}
-  return accuracies_dict
+          accuracies_list = []
+          for nb_neighbors in nb_neighbors_list:
+            print("\n\n============ nb_neighbors:{} ============".format(nb_neighbors))
+            start_time = time.time()
+            mc.nb_neighbors = nb_neighbors
+            dknn.update_neighbors(mc.nb_neighbors)
+            dknn_geod.update_neighbors(mc.nb_neighbors)
+            
+            start = time.time()
+            dknn.calibrate(x_cali, labels_cali)
+            preds_knn, _, _ = dknn.predict(x_test)
+            print("Calibrate and predict time: {}".format(time.time()-start))
+            
+            start = time.time()
+            dknn_geod.calibrate(x_cali, labels_cali)
+            preds_geod, _, _ = dknn_geod.predict(x_test)
+            print("Calibrate and predict time: {}".format(time.time()-start))
+
+            dknn_acc = (preds_knn==np.argmax(y_test, axis=1)).mean()
+            gdknn_acc = (preds_geod==np.argmax(y_test, axis=1)).mean()
+            accuracies_dict = {'neighbors': mc.nb_neighbors, 'DkNN': dknn_acc, 'gDkNN': gdknn_acc}
+
+            accuracies_list.append(accuracies_dict)
+            print(accuracies_dict)
+            print("Neighbors time: {}".format(time.time()-start_time))
+
+  return accuracies_list
 
 def get_data_dict(mc):
   # dataset = dataset_loader(config)
@@ -158,25 +188,19 @@ def hyperparameter_selection(mc):
 
   nb_neighbors_list = [128, 64, 32, 16, 8, 4, 2]
 
-  accuracies_list = []
-  for nb_neighbors in nb_neighbors_list:
-    print("\n\n============ nb_neighbors:{} ============".format(nb_neighbors))
-    tf.reset_default_graph()
-
-    mc.nb_neighbors = nb_neighbors
-    accuracies = compare_accuracies(mc, data_dict)
-    accuracies_list.append(accuracies)
+  accuracies_list = compare_accuracies(mc, data_dict, nb_neighbors_list)
 
   model_dir = mc.get_model_dir_name()
-  experiments_results_path = os.path.join(model_dir, 'accuracies.pkl')
+  mc.nb_neighbors = max(nb_neighbors_list)
+  
+  experiments_results_path = os.path.join(model_dir, 'accuracies_2.pkl')
   print('Saving Accuracies Table to {}'.format(experiments_results_path))
 
   accuracies_df = pd.DataFrame(accuracies_list)
   accuracies_df.to_pickle(path=experiments_results_path)
 
-
 if __name__ == '__main__':
   mc = ModelConfig(config_file='../configs/config_mnist.yaml',
                    root_dir='../results/')
-  train_model(mc)
+  #train_model(mc)
   hyperparameter_selection(mc)

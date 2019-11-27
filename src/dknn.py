@@ -21,6 +21,8 @@ import pickle
 from six.moves import xrange
 import enum
 import tensorflow as tf
+import time
+import hnswlib
 from cleverhans.attacks import FastGradientMethod
 from cleverhans.loss import CrossEntropy
 from cleverhans.dataset import MNIST
@@ -181,13 +183,16 @@ class NearestNeighbor:
     else:
       raise NotImplementedError
 
+  def update_neighbors(self, neighbors):
+        self._NEIGHBORS = neighbors
+
 ###################################
 # GEODEISC NEAREST NEIGHBOR CLASS
 ###################################
 
 class NNGeod():
   def __init__(self, neighbors, backend, dimension, number_bits,
-               nb_tables, proto_neighbors, neighbors_table_path):
+               nb_tables, proto_neighbors, neighbors_table_path, hash_table_path):
     self.nb_neighbors = neighbors
     self.backend = backend
     self.dimension = dimension
@@ -195,6 +200,7 @@ class NNGeod():
     self.nb_tables = nb_tables
     self.nb_proto_neighbors = proto_neighbors
     self.neighbors_table_path = neighbors_table_path
+    self.hash_table_path = hash_table_path
   
   def closest_neighbor(self, x):
    dists = distance.cdist(x, self.X, 'euclidean')
@@ -203,56 +209,45 @@ class NNGeod():
 
   def compute_geodesic_neighbors(self, features):
     # Approximate Neighbors
-    nb_obs = features.shape[0]
-    self.NN = NearestNeighbor(backend=self.backend,
-                                  dimension=self.dimension,
-                                  number_bits=self.number_bits,
-                                  neighbors=self.nb_proto_neighbors+1, # Add one neighbor to compensate self as neighbor
-                                  nb_tables=self.nb_tables)
-    self.NN.add(features)
+    nb_obs, dim = features.shape
+    data_idx = np.arange(nb_obs)
 
     if os.path.exists(self.neighbors_table_path):
       gknn = np.load(self.neighbors_table_path)
+      self.NN = hnswlib.Index(space = 'l2', dim = dim)
+      self.NN.load_index(self.hash_table_path, max_elements = nb_obs)
+      self.NN.set_ef(self.nb_tables)
     else:
-      # Use FALCONN to find indices of nearest neighbors in training data.
-      neighbors_idx = np.zeros((nb_obs, self.nb_proto_neighbors+1), dtype=np.int32)-1
-      distances = np.zeros((nb_obs, self.nb_proto_neighbors), dtype=np.int32)-1
+      self.NN = hnswlib.Index(space = 'l2', dim = dim)
+      self.NN.init_index(max_elements = nb_obs, ef_construction = self.nb_tables, M = 16)
+      self.NN.set_ef(self.nb_tables)
+      self.NN.add_items(features, data_idx)
 
-      knn_missing_indices = self.NN.find_knns(features, neighbors_idx)
+      neighbors_idx, distances = self.NN.knn_query(features, k = self.nb_proto_neighbors + 1)
+      distances = np.sqrt(distances) # knn_query returs squared euclidean norm
 
-      # Filter first neighbor, by construction is same point
-      neighbors_idx = neighbors_idx[:,1:]
-
-      # Replace missing neighbors (-1) with self observation
-      neighbors_idx[neighbors_idx<0] = np.where(neighbors_idx<0)[0]
-
+      # Convert the result in matrix form
       I = np.array(list(range(nb_obs))*(self.nb_proto_neighbors))
-      J = neighbors_idx.flatten('F')
-      V = np.linalg.norm(features[I] - features[J], axis=1)
+      J = neighbors_idx[:,1:].flatten('F')
+      V = distances[:,1:].flatten('F')
 
       kng = sparse.coo_matrix((V,(I,J)),shape=(nb_obs,nb_obs))
-
       gknn = fast_gknn(kng, directed=False, k=self.nb_neighbors)
+
       np.save(self.neighbors_table_path, gknn)
+      self.NN.save_index(self.hash_table_path)
 
     return gknn
   
   def add(self, X):
-    
-    self.geodesic_kernel = self.compute_geodesic_neighbors(features=X)
-    self.train_neighbor_index = self.geodesic_kernel[:,:,1][:,1:].astype(int)[:,:self.nb_neighbors-1]
+    self.gknn = self.compute_geodesic_neighbors(features=X)
+    self.train_neighbor_index = self.gknn[:,:,1][:,1:].astype(int)[:,:self.nb_neighbors-1]
     self.X = X
 
     return self
 
   def find_knns(self, x, output):
-    closest_neighbor_index = np.zeros((len(x), 1), dtype=np.int32)-1
-    knn_missing_indices = self.NN.find_knns(x, closest_neighbor_index, nb_neighbors=1)
-
-    if np.sum(closest_neighbor_index<0) > 0:
-      print('Missings approx nearest neighbors, computing real nearest neighbor!')
-      missings = closest_neighbor_index<0
-      closest_neighbor_index[missings] = self.closest_neighbor(x[missings])
+    closest_neighbor_index, _ = self.NN.knn_query(x, k = 1)
 
     for i in range(x.shape[0]):
       neighbor_index = self.train_neighbor_index[closest_neighbor_index[i], :]
@@ -263,6 +258,11 @@ class NNGeod():
 
     return missing_indices
 
+  def update_neighbors(self, neighbors):
+    self.nb_neighbors = neighbors
+    self.train_neighbor_index = self.gknn[:,:,1][:,1:].astype(int)[:,:self.nb_neighbors-1]
+
+
 ###################################
 # GREAT MODEL
 ###################################
@@ -270,7 +270,7 @@ class NNGeod():
 class DkNNModel(Model):
   def __init__(self, sess, model, neighbors, proto_neighbors, layers, 
                train_data, train_labels, img_rows, img_cols, nchannels, nb_classes, 
-               method, neighbors_table_path=None, backend=1, number_bits=17, scope=None, nb_tables=200):
+               method, neighbors_table_path=None, hash_table_path=None, backend=1, number_bits=17, scope=None, hash_hypar=600):
     """
     Implements the DkNN algorithm. See https://arxiv.org/abs/1803.04765 for more details.
     :param neighbors: number of neighbors to find per layer.
@@ -288,7 +288,7 @@ class DkNNModel(Model):
     self.neighbors = neighbors
     self.proto_neighbors = proto_neighbors
     self.method = method
-    self.nb_tables = nb_tables
+    self.hash_hypar = hash_hypar
     self.number_bits = number_bits
     self.backend = backend
     self.layers = layers
@@ -305,6 +305,7 @@ class DkNNModel(Model):
     
     self.train_labels = train_labels
     self.neighbors_table_path = neighbors_table_path
+    self.hash_table_path = hash_table_path
 
     # Build graph
     self.build_graph()
@@ -327,6 +328,11 @@ class DkNNModel(Model):
                                                tf_outputs=[self.layer_sym_ph[layer]],
                                                numpy_inputs=[data], batch_size=batch_size)[0]
       return data_activations
+
+  def update_neighbors(self, neighbors):
+      self.neighbors = neighbors
+      for layer in self.layers:
+        self.query_objects[layer].update_neighbors(self.neighbors)
 
   def fit(self):
     """
@@ -356,19 +362,22 @@ class DkNNModel(Model):
                                                     dimension=self.train_activations_querier[layer].shape[1],
                                                     number_bits=self.number_bits,
                                                     neighbors=self.neighbors,
-                                                    nb_tables=self.nb_tables)
+                                                    nb_tables=self.hash_hypar)
         self.query_objects[layer].add(self.train_activations_querier[layer])
 
       elif self.method == 'geodesic':
         print('Constructing the GeodesicNearestNeighbor table layer {}'.format(layer))
         layer_geodesics_path = os.path.join(self.neighbors_table_path, 'geodesics_{}.npy'.format(layer))
+        layer_hash_path = os.path.join(self.neighbors_table_path, 'hash_{}.npy'.format(layer))
+
         self.query_objects[layer] = NNGeod(neighbors = self.neighbors,
                                            backend=self.backend,
                                            dimension=self.train_activations_querier[layer].shape[1],
                                            number_bits=self.number_bits,
-                                           nb_tables=self.nb_tables,
+                                           nb_tables=self.hash_hypar,
                                            proto_neighbors = self.proto_neighbors,
-                                           neighbors_table_path = layer_geodesics_path)
+                                           neighbors_table_path = layer_geodesics_path,
+                                           hash_table_path = layer_hash_path)
         self.query_objects[layer].add(self.train_activations_querier[layer])
 
   def find_train_knns(self, data_activations):
