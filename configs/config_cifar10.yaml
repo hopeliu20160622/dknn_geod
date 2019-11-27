@@ -3,9 +3,9 @@ dataset_name: CIFAR10
 architecture: resnet
 device: gpu
 train_parameters:
-  max_epochs: 6
+  max_epochs: 40
   learning_rate: 0.0001
-  lr_scheduler_step_size: 100
+  lr_scheduler_step_size: 35
   loss_threshold: 100000000
   batch_size: 128
   nb_random_seeds: 2
