@@ -1,4 +1,5 @@
 import os
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import numpy as np
 import pandas as pd
 
@@ -32,7 +33,6 @@ def train_model(mc):
                                shape=(None, mc.nb_classes))
 
             # Define a model.
-            #model = make_wresnet(scope='dknn')
             model = mc.get_model(scope='dknn')
             preds = model.get_logits(x)
             loss = CrossEntropy(model, smoothing=0.)
