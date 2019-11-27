@@ -1,7 +1,7 @@
 name: CIFAR10 DKNN Experiment
 dataset_name: CIFAR10
-architecture: mlp
-device: cpu
+architecture: resnet
+device: gpu
 train_parameters:
   max_epochs: 6
   learning_rate: 0.0001
