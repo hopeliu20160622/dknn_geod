@@ -28,5 +28,6 @@ python setup_fast_gknn.py build_ext --inplace
 cd ../
 conda deactivate
 
+mkdir results/
 mkdir results/MNIST/
 mkdir results/CIFAR10/
