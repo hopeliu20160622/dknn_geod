@@ -7,11 +7,11 @@ train_parameters:
   learning_rate: 0.0001
   lr_scheduler_step_size: 100
   loss_threshold: 100000000
-  batch_size: 16
+  batch_size: 128
   nb_random_seeds: 2
   weight_decay: 0.0001
-  nb_train: 1000
-  nb_test: 1000
+  nb_train: 10000
+  nb_test: 10000
   gpu_memory_fraction: 0.25
 nn_parameters:
   nb_proto_neighbors: 5
