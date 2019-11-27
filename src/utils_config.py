@@ -36,6 +36,7 @@ class ModelConfig(object):
       self.weight_decay = config['train_parameters']['weight_decay']
       self.nb_train = config['train_parameters']['nb_train']
       self.nb_test = config['train_parameters']['nb_test']
+      self.gpu_device = config['train_parameters']['gpu_device']
       self.gpu_memory_fraction = config['train_parameters']['gpu_memory_fraction']
       self.nb_proto_neighbors = config['nn_parameters']['nb_proto_neighbors']
       self.nb_neighbors = config['nn_parameters']['nb_neighbors']

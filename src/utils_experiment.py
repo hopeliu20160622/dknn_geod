@@ -1,5 +1,4 @@
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
 import numpy as np
 import pandas as pd
 
@@ -177,5 +176,7 @@ def hyperparameter_selection(mc):
 if __name__ == '__main__':
   mc = ModelConfig(config_file='../configs/config_mnist.yaml',
                    root_dir='../results/')
+  os.environ["CUDA_VISIBLE_DEVICES"] = str(mc.gpu_device)
+
   train_model(mc)
-  hyperparameter_selection(mc)
+  #hyperparameter_selection(mc)
