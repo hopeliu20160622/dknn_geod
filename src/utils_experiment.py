@@ -86,7 +86,6 @@ def compare_accuracies(mc, data_dict, nb_neighbors_list):
           model=model,
           neighbors=mc.nb_neighbors,
           proto_neighbors=mc.nb_proto_neighbors,
-          backend=mc.backend,
           img_rows=mc.img_rows,
           img_cols=mc.img_cols,
           nchannels=mc.nchannels,
@@ -95,6 +94,7 @@ def compare_accuracies(mc, data_dict, nb_neighbors_list):
           train_data=x_train,
           train_labels=labels_train,
           method='euclidean',
+          neighbors_table_path=mc.get_model_dir_name(),
           scope='dknn')
           
           start = time.time()
@@ -107,7 +107,6 @@ def compare_accuracies(mc, data_dict, nb_neighbors_list):
           model=model,
           neighbors=mc.nb_neighbors,
           proto_neighbors=mc.nb_proto_neighbors,
-          backend=mc.backend,
           img_rows=mc.img_rows,
           img_cols=mc.img_cols,
           nchannels=mc.nchannels,
@@ -184,7 +183,7 @@ def hyperparameter_selection(mc):
   # reand and wrangle data
   data_dict = get_data_dict(mc)
 
-  nb_neighbors_list = [128, 64, 32, 16, 8, 4, 2]
+  nb_neighbors_list = [512, 256, 128, 64, 32, 16]
 
   accuracies_list = compare_accuracies(mc, data_dict, nb_neighbors_list)
 
@@ -202,5 +201,5 @@ if __name__ == '__main__':
                    root_dir='../results/')
   os.environ["CUDA_VISIBLE_DEVICES"] = str(mc.gpu_device)
 
-  train_model(mc)
-  #hyperparameter_selection(mc)
+  #train_model(mc)
+  hyperparameter_selection(mc)

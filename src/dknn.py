@@ -85,6 +85,11 @@ class NearestNeighbor:
   ):
     import falconn
 
+    if self._NEIGHBORS < 512:
+      nb_tables = 200
+    else:
+      nb_tables = 600
+
     assert nb_tables >= self._NEIGHBORS
 
     # LSH parameters
@@ -187,43 +192,66 @@ class NearestNeighbor:
         self._NEIGHBORS = neighbors
 
 ###################################
+# HASHING  NEAREST NEIGHBOR CLASS
+###################################
+
+class NNHash():
+  def __init__(self, neighbors, dimension, hash_hypar, hash_table_path):
+    self.nb_neighbors = neighbors
+    self.dimension = dimension
+    self.hash_hypar = hash_hypar
+    self.hash_table_path = hash_table_path
+
+  def add(self, X):
+    nb_obs, dim = X.shape
+    data_idx = np.arange(nb_obs)
+
+    self.hash_table = hnswlib.Index(space = 'l2', dim = dim)
+    if os.path.exists(self.hash_table_path):
+      self.hash_table.load_index(self.hash_table_path, max_elements = nb_obs)
+      self.hash_table.set_ef(self.hash_hypar)
+    else:
+      self.hash_table.init_index(max_elements = nb_obs, ef_construction = self.hash_hypar, M = 48)
+      self.hash_table.set_ef(self.hash_hypar)
+      self.hash_table.add_items(X, data_idx)
+      self.hash_table.save_index(self.hash_table_path)
+
+  def find_knns(self, x, output):
+    neighbors_index, _ = self.hash_table.knn_query(x, k=self.nb_neighbors)
+
+    for i in range(x.shape[0]):
+      output[i, :] = neighbors_index[i]
+    
+    missing_indices = np.zeros(output.shape, dtype=np.bool)
+    return missing_indices
+
+  def update_neighbors(self, neighbors):
+    self.nb_neighbors = neighbors
+
+###################################
 # GEODEISC NEAREST NEIGHBOR CLASS
 ###################################
 
 class NNGeod():
-  def __init__(self, neighbors, backend, dimension, number_bits,
-               nb_tables, proto_neighbors, neighbors_table_path, hash_table_path):
+  def __init__(self, neighbors, dimension, hash_hypar, proto_neighbors, neighbors_table_path, hash_table_path):
     self.nb_neighbors = neighbors
-    self.backend = backend
     self.dimension = dimension
-    self.number_bits = number_bits
-    self.nb_tables = nb_tables
+    self.hash_hypar = hash_hypar
     self.nb_proto_neighbors = proto_neighbors
     self.neighbors_table_path = neighbors_table_path
     self.hash_table_path = hash_table_path
-  
-  def closest_neighbor(self, x):
-   dists = distance.cdist(x, self.X, 'euclidean')
-   closest_neighbor = np.argmin(dists, axis=1)
-   return closest_neighbor
 
   def compute_geodesic_neighbors(self, features):
     # Approximate Neighbors
     nb_obs, dim = features.shape
-    data_idx = np.arange(nb_obs)
+
+    self.NN = NNHash(self.nb_proto_neighbors+1, self.dimension, self.hash_hypar, self.hash_table_path)
+    self.NN.add(features)
 
     if os.path.exists(self.neighbors_table_path):
       gknn = np.load(self.neighbors_table_path)
-      self.NN = hnswlib.Index(space = 'l2', dim = dim)
-      self.NN.load_index(self.hash_table_path, max_elements = nb_obs)
-      self.NN.set_ef(self.nb_tables)
     else:
-      self.NN = hnswlib.Index(space = 'l2', dim = dim)
-      self.NN.init_index(max_elements = nb_obs, ef_construction = self.nb_tables, M = 16)
-      self.NN.set_ef(self.nb_tables)
-      self.NN.add_items(features, data_idx)
-
-      neighbors_idx, distances = self.NN.knn_query(features, k = self.nb_proto_neighbors + 1)
+      neighbors_idx, distances = self.NN.hash_table.knn_query(features, k=self.nb_proto_neighbors+1)
       distances = np.sqrt(distances) # knn_query returs squared euclidean norm
 
       # Convert the result in matrix form
@@ -235,8 +263,6 @@ class NNGeod():
       gknn = fast_gknn(kng, directed=False, k=self.nb_neighbors)
 
       np.save(self.neighbors_table_path, gknn)
-      self.NN.save_index(self.hash_table_path)
-
     return gknn
   
   def add(self, X):
@@ -247,7 +273,7 @@ class NNGeod():
     return self
 
   def find_knns(self, x, output):
-    closest_neighbor_index, _ = self.NN.knn_query(x, k = 1)
+    closest_neighbor_index, _ = self.NN.hash_table.knn_query(x, k=1)
 
     for i in range(x.shape[0]):
       neighbor_index = self.train_neighbor_index[closest_neighbor_index[i], :]
@@ -270,7 +296,7 @@ class NNGeod():
 class DkNNModel(Model):
   def __init__(self, sess, model, neighbors, proto_neighbors, layers, 
                train_data, train_labels, img_rows, img_cols, nchannels, nb_classes, 
-               method, neighbors_table_path=None, hash_table_path=None, backend=1, number_bits=17, scope=None, hash_hypar=600):
+               method, neighbors_table_path=None, hash_table_path=None, scope=None, hash_hypar=600):
     """
     Implements the DkNN algorithm. See https://arxiv.org/abs/1803.04765 for more details.
     :param neighbors: number of neighbors to find per layer.
@@ -289,8 +315,6 @@ class DkNNModel(Model):
     self.proto_neighbors = proto_neighbors
     self.method = method
     self.hash_hypar = hash_hypar
-    self.number_bits = number_bits
-    self.backend = backend
     self.layers = layers
     self.nb_cali = -1
     self.calibrated = False
@@ -356,25 +380,22 @@ class DkNNModel(Model):
       self.train_activations_querier[layer] -= center
       self.centers[layer] = center
 
+      layer_hash_path = os.path.join(self.neighbors_table_path, 'hash_{}.npy'.format(layer))
       if self.method == 'euclidean':
         print('Constructing the NearestNeighbor table layer {}'.format(layer))
-        self.query_objects[layer] = NearestNeighbor(backend=self.backend,
-                                                    dimension=self.train_activations_querier[layer].shape[1],
-                                                    number_bits=self.number_bits,
-                                                    neighbors=self.neighbors,
-                                                    nb_tables=self.hash_hypar)
+        self.query_objects[layer] = NNHash(neighbors=self.neighbors,
+                                           dimension=self.train_activations_querier[layer].shape[1],
+                                           hash_hypar=self.hash_hypar,
+                                           hash_table_path = layer_hash_path)
         self.query_objects[layer].add(self.train_activations_querier[layer])
 
       elif self.method == 'geodesic':
         print('Constructing the GeodesicNearestNeighbor table layer {}'.format(layer))
         layer_geodesics_path = os.path.join(self.neighbors_table_path, 'geodesics_{}.npy'.format(layer))
-        layer_hash_path = os.path.join(self.neighbors_table_path, 'hash_{}.npy'.format(layer))
 
         self.query_objects[layer] = NNGeod(neighbors = self.neighbors,
-                                           backend=self.backend,
                                            dimension=self.train_activations_querier[layer].shape[1],
-                                           number_bits=self.number_bits,
-                                           nb_tables=self.hash_hypar,
+                                           hash_hypar=self.hash_hypar,
                                            proto_neighbors = self.proto_neighbors,
                                            neighbors_table_path = layer_geodesics_path,
                                            hash_table_path = layer_hash_path)
