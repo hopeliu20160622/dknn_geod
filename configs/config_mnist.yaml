@@ -10,13 +10,13 @@ train_parameters:
   batch_size: 500
   nb_random_seeds: 2
   weight_decay: 0.0001
-  nb_train: 1000
-  nb_test: 1000
+  nb_train: 10000
+  nb_test: 2000
   gpu_device: 0
   gpu_memory_fraction: 0.25
 nn_parameters:
-  nb_proto_neighbors: 5
-  nb_neighbors: 128
+  nb_proto_neighbors: 12
+  nb_neighbors: 512
   nb_cali: 750
   backend: FALCONN
   hash_hypar: 600
