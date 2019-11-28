@@ -200,7 +200,7 @@ def hyperparameter_selection(mc):
   accuracies_df.to_pickle(path=experiments_results_path)
 
 if __name__ == '__main__':
-  mc = ModelConfig(config_file='../configs/config_cifar10yaml',
+  mc = ModelConfig(config_file='../configs/config_cifar10.yaml',
                    root_dir='../results/')
   os.environ["CUDA_VISIBLE_DEVICES"] = str(mc.gpu_device)
 
