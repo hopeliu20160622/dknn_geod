@@ -78,7 +78,10 @@ def compare_accuracies(mc, data_dict, nb_neighbors_list):
           model = mc.load_model(model_dir=model_dir)
 
           # Extract representations for the training and calibration data at each layer of interest to the DkNN.
-          layers = ['ReLU1', 'ReLU3', 'ReLU5', 'logits']
+          if mc.dataset_name=='MNIST':
+            layers = ['ReLU1', 'ReLU3', 'ReLU5', 'logits']
+          elif mc.dataset_name=='CIFAR10':
+            layers = ['Input0', 'Conv2D1', 'Flatten2', 'logits']
 
           #Euclidean DKNN
           dknn = DkNNModel(
@@ -197,7 +200,7 @@ def hyperparameter_selection(mc):
   accuracies_df.to_pickle(path=experiments_results_path)
 
 if __name__ == '__main__':
-  mc = ModelConfig(config_file='../configs/config_mnist.yaml',
+  mc = ModelConfig(config_file='../configs/config_cifar10yaml',
                    root_dir='../results/')
   os.environ["CUDA_VISIBLE_DEVICES"] = str(mc.gpu_device)
 
