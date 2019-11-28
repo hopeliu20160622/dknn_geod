@@ -22,6 +22,7 @@ conda install -c anaconda pylint
 conda install -c anaconda pyyaml
 pip install cleverhans
 conda install -c akode falconn
+pip install hnswlib
 conda install -c anaconda cython
 cd src/
 python setup_fast_gknn.py build_ext --inplace
