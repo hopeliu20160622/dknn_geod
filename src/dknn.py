@@ -58,6 +58,7 @@ class NearestNeighbor:
     neighbors,
     number_bits,
     nb_tables=None,
+    hash_table_path=None
   ):
     #assert backend in NearestNeighbor.BACKEND
 
@@ -233,10 +234,10 @@ class NNHash():
 ###################################
 
 class NNGeod():
-  def __init__(self, neighbors, dimension, hash_hypar, proto_neighbors, neighbors_table_path, hash_table_path):
+  def __init__(self, backend, number_bits, neighbors, dimension, nb_tables, proto_neighbors, neighbors_table_path, hash_table_path):
     self.nb_neighbors = neighbors
     self.dimension = dimension
-    self.hash_hypar = hash_hypar
+    self.hash_hypar = nb_tables
     self.nb_proto_neighbors = proto_neighbors
     self.neighbors_table_path = neighbors_table_path
     self.hash_table_path = hash_table_path
@@ -294,9 +295,9 @@ class NNGeod():
 ###################################
 
 class DkNNModel(Model):
-  def __init__(self, sess, model, neighbors, proto_neighbors, layers, 
+  def __init__(self, sess, model, backend, neighbors, proto_neighbors, layers, 
                train_data, train_labels, img_rows, img_cols, nchannels, nb_classes, 
-               method, neighbors_table_path=None, hash_table_path=None, scope=None, hash_hypar=600):
+               method, neighbors_table_path=None, hash_table_path=None, scope=None, number_bits=17, nb_tables=600):
     """
     Implements the DkNN algorithm. See https://arxiv.org/abs/1803.04765 for more details.
     :param neighbors: number of neighbors to find per layer.
@@ -314,10 +315,12 @@ class DkNNModel(Model):
     self.neighbors = neighbors
     self.proto_neighbors = proto_neighbors
     self.method = method
-    self.hash_hypar = hash_hypar
+    self.nb_tables = nb_tables
     self.layers = layers
     self.nb_cali = -1
     self.calibrated = False
+    self.number_bits = number_bits
+    self.backend = backend
 
     # Compute training data activations
     self.nb_train = train_labels.shape[0]
@@ -383,10 +386,12 @@ class DkNNModel(Model):
       layer_hash_path = os.path.join(self.neighbors_table_path, 'hash_{}.npy'.format(layer))
       if self.method == 'euclidean':
         print('Constructing the NearestNeighbor table layer {}'.format(layer))
-        self.query_objects[layer] = NNHash(neighbors=self.neighbors,
-                                           dimension=self.train_activations_querier[layer].shape[1],
-                                           hash_hypar=self.hash_hypar,
-                                           hash_table_path = layer_hash_path)
+        self.query_objects[layer] = NearestNeighbor(neighbors=self.neighbors,
+                                                    backend = self.backend,
+                                                    number_bits = self.number_bits,
+                                                    dimension=self.train_activations_querier[layer].shape[1],
+                                                    nb_tables=self.nb_tables,
+                                                    hash_table_path = layer_hash_path)
         self.query_objects[layer].add(self.train_activations_querier[layer])
 
       elif self.method == 'geodesic':
@@ -394,8 +399,10 @@ class DkNNModel(Model):
         layer_geodesics_path = os.path.join(self.neighbors_table_path, 'geodesics_{}.npy'.format(layer))
 
         self.query_objects[layer] = NNGeod(neighbors = self.neighbors,
+                                           backend = self.backend,
+                                           number_bits = self.number_bits,
                                            dimension=self.train_activations_querier[layer].shape[1],
-                                           hash_hypar=self.hash_hypar,
+                                           nb_tables=self.nb_tables,
                                            proto_neighbors = self.proto_neighbors,
                                            neighbors_table_path = layer_geodesics_path,
                                            hash_table_path = layer_hash_path)

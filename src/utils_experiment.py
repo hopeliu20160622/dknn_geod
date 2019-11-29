@@ -87,6 +87,7 @@ def compare_accuracies(mc, data_dict, nb_neighbors_list):
           dknn = DkNNModel(
           sess=sess,
           model=model,
+          backend=mc.backend,
           neighbors=mc.nb_neighbors,
           proto_neighbors=mc.nb_proto_neighbors,
           img_rows=mc.img_rows,
@@ -108,6 +109,7 @@ def compare_accuracies(mc, data_dict, nb_neighbors_list):
           dknn_geod = DkNNModel(
           sess=sess,
           model=model,
+          backend=mc.backend,
           neighbors=mc.nb_neighbors,
           proto_neighbors=mc.nb_proto_neighbors,
           img_rows=mc.img_rows,
@@ -193,14 +195,14 @@ def hyperparameter_selection(mc):
   model_dir = mc.get_model_dir_name()
   mc.nb_neighbors = max(nb_neighbors_list)
   
-  experiments_results_path = os.path.join(model_dir, 'accuracies_2.pkl')
+  experiments_results_path = os.path.join(model_dir, 'accuracies.pkl')
   print('Saving Accuracies Table to {}'.format(experiments_results_path))
 
   accuracies_df = pd.DataFrame(accuracies_list)
   accuracies_df.to_pickle(path=experiments_results_path)
 
 if __name__ == '__main__':
-  mc = ModelConfig(config_file='../configs/config_cifar10yaml',
+  mc = ModelConfig(config_file='../configs/config_mnist.yaml',
                    root_dir='../results/')
   os.environ["CUDA_VISIBLE_DEVICES"] = str(mc.gpu_device)
 
