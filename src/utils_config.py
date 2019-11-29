@@ -91,7 +91,7 @@ class ModelConfig(object):
     if self.dataset_name == 'SVHN':
       nb_filters=64
       nb_classes=self.nb_classes
-      input_shape=(None, 32, 32, 1)
+      input_shape=(None, 32, 32, 3)
       layers = [Conv2D(nb_filters, (8, 8), (2, 2), "SAME"),
               ReLU(),
               Conv2D(nb_filters * 2, (6, 6), (2, 2), "VALID"),
