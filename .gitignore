@@ -3,7 +3,9 @@
 *.vscode
 *.ipynb_checkpoints
 data/
-results/
+!results/
+results/*
+!results/attacks/
 plots/
 statistics/
 theory/
