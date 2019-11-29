@@ -127,6 +127,11 @@ def compare_accuracies(mc, data_dict, nb_neighbors_list):
           dknn_geod.fit()
           print("Fit time: {}".format(time.time()-start))
 
+          test_activations = dknn_geod.get_activations(x_test)
+          test_softmax = test_activations['logits']
+          baseline_accuracy = (np.argmax(test_softmax,axis=1)==np.argmax(y_test,axis=1)).mean()
+          print('Baseline accuracy: {}'.format(baseline_accuracy))
+
           accuracies_list = []
           for nb_neighbors in nb_neighbors_list:
             print("\n\n============ nb_neighbors:{} ============".format(nb_neighbors))
@@ -147,7 +152,7 @@ def compare_accuracies(mc, data_dict, nb_neighbors_list):
 
             dknn_acc = (preds_knn==np.argmax(y_test, axis=1)).mean()
             gdknn_acc = (preds_geod==np.argmax(y_test, axis=1)).mean()
-            accuracies_dict = {'neighbors': mc.nb_neighbors, 'DkNN': dknn_acc, 'gDkNN': gdknn_acc}
+            accuracies_dict = {'neighbors': mc.nb_neighbors, 'Baseline':baseline_accuracy,'DkNN': dknn_acc, 'gDkNN': gdknn_acc}
 
             accuracies_list.append(accuracies_dict)
             print(accuracies_dict)
