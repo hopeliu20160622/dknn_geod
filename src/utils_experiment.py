@@ -189,12 +189,11 @@ def hyperparameter_selection(mc):
   data_dict = get_data_dict(mc)
 
   nb_neighbors_list = [512, 256, 128, 64, 32, 16]
+  mc.nb_neighbors = max(nb_neighbors_list)
 
   accuracies_list = compare_accuracies(mc, data_dict, nb_neighbors_list)
 
   model_dir = mc.get_model_dir_name()
-  mc.nb_neighbors = max(nb_neighbors_list)
-  
   experiments_results_path = os.path.join(model_dir, 'accuracies.pkl')
   print('Saving Accuracies Table to {}'.format(experiments_results_path))
 
@@ -202,7 +201,7 @@ def hyperparameter_selection(mc):
   accuracies_df.to_pickle(path=experiments_results_path)
 
 if __name__ == '__main__':
-  mc = ModelConfig(config_file='../configs/config_mnist.yaml',
+  mc = ModelConfig(config_file='../configs/config_svhn.yaml',
                    root_dir='../results/')
   os.environ["CUDA_VISIBLE_DEVICES"] = str(mc.gpu_device)
 
