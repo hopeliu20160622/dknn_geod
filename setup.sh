@@ -36,4 +36,5 @@ conda deactivate
 
 mkdir results/
 mkdir results/MNIST/
+mkdir results/SVHN/
 mkdir results/CIFAR10/
