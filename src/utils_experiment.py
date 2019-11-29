@@ -78,7 +78,7 @@ def compare_accuracies(mc, data_dict, nb_neighbors_list):
           model = mc.load_model(model_dir=model_dir)
 
           # Extract representations for the training and calibration data at each layer of interest to the DkNN.
-          if mc.dataset_name=='MNIST':
+          if mc.dataset_name=='MNIST' or mc.dataset_name=='SVHN':
             layers = ['ReLU1', 'ReLU3', 'ReLU5', 'logits']
           elif mc.dataset_name=='CIFAR10':
             layers = ['Input0', 'Conv2D1', 'Flatten2', 'logits']
